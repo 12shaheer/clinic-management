@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 export async function login(formData: FormData) {
   const email = formData.get("email") as string;
@@ -18,5 +18,6 @@ export async function login(formData: FormData) {
     return { error: "Invalid email or password" };
   }
 
-  redirect("/dashboard");
+  revalidatePath("/", "layout");
+  return { error: null };
 }
