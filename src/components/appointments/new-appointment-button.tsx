@@ -108,8 +108,8 @@ function NewAppointmentModal({ onClose }: { onClose: () => void }) {
               <input name="start_time" type="time" required className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">End Time *</label>
-              <input name="end_time" type="time" required className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" />
+              <label className="block text-sm font-medium text-gray-700">End Time</label>
+              <input name="end_time" type="time" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" />
             </div>
           </div>
 
