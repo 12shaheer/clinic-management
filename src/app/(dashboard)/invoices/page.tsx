@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { format } from "date-fns";
 import Link from "next/link";
+import { NewInvoiceButton } from "@/components/invoices/new-invoice-button";
+import { InvoiceActions } from "@/components/invoices/invoice-actions";
 
 export default async function InvoicesPage() {
   const supabase = await createClient();
@@ -11,15 +13,24 @@ export default async function InvoicesPage() {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  // Sort: unpaid/partially_paid first, then paid/cancelled at bottom
+  const sorted = invoices?.sort((a, b) => {
+    const priority: Record<string, number> = { unpaid: 0, partially_paid: 1, paid: 2, cancelled: 3 };
+    return (priority[a.status] ?? 4) - (priority[b.status] ?? 4);
+  }) ?? [];
+
   return (
     <div>
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
-        <p className="mt-1 text-sm text-gray-500">View and manage invoices</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Invoices & Payments</h1>
+          <p className="mt-1 text-sm text-gray-500">Create invoices and record payments</p>
+        </div>
+        <NewInvoiceButton />
       </div>
 
       <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
-        {invoices && invoices.length > 0 ? (
+        {sorted.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -33,11 +44,11 @@ export default async function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {invoices.map((inv) => {
+              {sorted.map((inv) => {
                 const patient = inv.patients as { first_name: string; last_name: string; patient_code: string } | null;
                 const session = inv.sessions as { session_code: string } | null;
                 return (
-                  <tr key={inv.id} className="hover:bg-gray-50">
+                  <tr key={inv.id} className={`hover:bg-gray-50 ${inv.status === "paid" || inv.status === "cancelled" ? "opacity-60" : ""}`}>
                     <td className="px-6 py-4 font-mono text-xs text-gray-600">{inv.invoice_code}</td>
                     <td className="px-6 py-4">
                       <p className="font-medium text-gray-900">{patient?.first_name} {patient?.last_name}</p>
@@ -57,12 +68,17 @@ export default async function InvoicesPage() {
                     </td>
                     <td className="px-6 py-4 text-gray-600">{format(new Date(inv.issued_at), "MMM d, yyyy")}</td>
                     <td className="px-6 py-4">
-                      <Link
-                        href={`/invoices/${inv.id}`}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                      >
-                        View
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/invoices/${inv.id}`}
+                          className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                        >
+                          View
+                        </Link>
+                        {(inv.status === "unpaid" || inv.status === "partially_paid") && (
+                          <InvoiceActions invoiceId={inv.id} total={Number(inv.total)} />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -71,7 +87,7 @@ export default async function InvoicesPage() {
           </table>
         ) : (
           <div className="px-6 py-12 text-center">
-            <p className="text-sm text-gray-500">No invoices found.</p>
+            <p className="text-sm text-gray-500">No invoices found. Create one to get started.</p>
           </div>
         )}
       </div>

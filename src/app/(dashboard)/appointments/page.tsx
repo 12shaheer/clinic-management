@@ -36,6 +36,12 @@ export default async function AppointmentsPage({
     .select("id, first_name, last_name")
     .eq("status", "active");
 
+  // Sort: active statuses first, completed/cancelled last
+  const sorted = appointments?.sort((a, b) => {
+    const priority: Record<string, number> = { checked_in: 0, in_session: 1, confirmed: 2, scheduled: 3, completed: 4, cancelled: 5, no_show: 6 };
+    return (priority[a.status] ?? 7) - (priority[b.status] ?? 7);
+  }) ?? [];
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -90,7 +96,7 @@ export default async function AppointmentsPage({
 
       {/* Table */}
       <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
-        {appointments && appointments.length > 0 ? (
+        {sorted.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -105,7 +111,7 @@ export default async function AppointmentsPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {appointments.map((apt) => {
+              {sorted.map((apt) => {
                 const patient = apt.patients as { first_name: string; last_name: string; patient_code: string } | null;
                 const physio = apt.physiotherapists as { first_name: string; last_name: string; physio_code: string } | null;
                 return (

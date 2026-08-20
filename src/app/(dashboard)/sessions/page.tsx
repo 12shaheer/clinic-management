@@ -21,6 +21,11 @@ export default async function SessionsPage({
 
   const { data: sessions } = await query.limit(50);
 
+  const sorted = sessions?.sort((a, b) => {
+    const priority: Record<string, number> = { waiting: 0, in_progress: 1, completed: 2, cancelled: 3 };
+    return (priority[a.status] ?? 4) - (priority[b.status] ?? 4);
+  }) ?? [];
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -50,7 +55,7 @@ export default async function SessionsPage({
       </div>
 
       <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
-        {sessions && sessions.length > 0 ? (
+        {sorted.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -64,7 +69,7 @@ export default async function SessionsPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sessions.map((session) => {
+              {sorted.map((session) => {
                 const patient = session.patients as { first_name: string; last_name: string; patient_code: string } | null;
                 const physio = session.physiotherapists as { first_name: string; last_name: string } | null;
                 const apt = session.appointments as { appointment_code: string } | null;

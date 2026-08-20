@@ -10,8 +10,7 @@ const navigation = [
   { name: "Patients", href: "/patients", icon: PatientsIcon },
   { name: "Appointments", href: "/appointments", icon: AppointmentsIcon },
   { name: "Sessions", href: "/sessions", icon: SessionsIcon },
-  { name: "Payments", href: "/payments", icon: PaymentsIcon },
-  { name: "Invoices", href: "/invoices", icon: InvoicesIcon },
+  { name: "Billing", href: "/invoices", icon: PaymentsIcon },
   { name: "Physiotherapists", href: "/physiotherapists", icon: PhysioIcon },
 ];
 
