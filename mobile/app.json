@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Clinic",
-    "slug": "clinic-mobile",
+    "slug": "clinic",
+    "owner": "sherryyy1231231231231s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -33,7 +34,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "aa61cd5f-040b-40b5-a7ae-8906aeda2978"
+        "projectId": "c7140fb6-93ac-4bd9-bb26-35afa27f0216"
       }
     }
   }
