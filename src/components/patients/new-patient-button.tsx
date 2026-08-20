@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { createPatient } from "@/app/(dashboard)/patients/actions";
 
 export function NewPatientButton() {
   const [open, setOpen] = useState(false);
@@ -21,52 +20,29 @@ export function NewPatientButton() {
 }
 
 function NewPatientModal({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     const formData = new FormData(e.currentTarget);
-    const data = {
-      first_name: formData.get("first_name") as string,
-      last_name: formData.get("last_name") as string,
-      phone: formData.get("phone") as string,
-      email: (formData.get("email") as string) || null,
-      date_of_birth: (formData.get("date_of_birth") as string) || null,
-      gender: (formData.get("gender") as string) || null,
-      address: (formData.get("address") as string) || null,
-      emergency_contact_name: (formData.get("emergency_contact_name") as string) || null,
-      emergency_contact_phone: (formData.get("emergency_contact_phone") as string) || null,
-      notes: (formData.get("notes") as string) || null,
-    };
 
-    if (!data.first_name || !data.last_name || !data.phone) {
+    if (!formData.get("first_name") || !formData.get("last_name") || !formData.get("phone")) {
       setError("First name, last name, and phone are required.");
-      setLoading(false);
       return;
     }
 
-    const supabase = createClient();
-    const { data: patient, error: dbError } = await supabase
-      .from("patients")
-      .insert(data)
-      .select("patient_code")
-      .single();
-
-    if (dbError) {
-      setError("Failed to create patient. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    setSuccess(patient.patient_code);
-    setLoading(false);
-    router.refresh();
+    startTransition(async () => {
+      const result = await createPatient(formData);
+      if (result.error) {
+        setError(result.error);
+      } else if ("patientCode" in result) {
+        setSuccess(result.patientCode);
+      }
+    });
   }
 
   if (success) {
@@ -148,10 +124,10 @@ function NewPatientModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {loading ? "Creating..." : "Create Patient"}
+              {isPending ? "Creating..." : "Create Patient"}
             </button>
           </div>
         </form>

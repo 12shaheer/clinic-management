@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
+import { createAppointment, getPatients, getPhysiotherapists } from "@/app/(dashboard)/appointments/actions";
 
 export function NewAppointmentButton() {
   const [open, setOpen] = useState(false);
@@ -21,67 +20,30 @@ export function NewAppointmentButton() {
 }
 
 function NewAppointmentModal({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [patients, setPatients] = useState<{ id: string; first_name: string; last_name: string; patient_code: string }[]>([]);
   const [physios, setPhysios] = useState<{ id: string; first_name: string; last_name: string }[]>([]);
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.from("patients").select("id, first_name, last_name, patient_code").eq("status", "active").then(({ data }) => {
-      if (data) setPatients(data);
-    });
-    supabase.from("physiotherapists").select("id, first_name, last_name").eq("status", "active").then(({ data }) => {
-      if (data) setPhysios(data);
-    });
+    getPatients().then(setPatients);
+    getPhysiotherapists().then(setPhysios);
   }, []);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setError("");
-
     const formData = new FormData(e.currentTarget);
-    const data = {
-      patient_id: formData.get("patient_id") as string,
-      physiotherapist_id: formData.get("physiotherapist_id") as string,
-      appointment_date: formData.get("appointment_date") as string,
-      start_time: formData.get("start_time") as string,
-      end_time: formData.get("end_time") as string,
-      appointment_type: (formData.get("appointment_type") as string) || null,
-      notes: (formData.get("notes") as string) || null,
-    };
 
-    if (!data.patient_id || !data.physiotherapist_id || !data.appointment_date || !data.start_time || !data.end_time) {
-      setError("Please fill in all required fields.");
-      setLoading(false);
-      return;
-    }
-
-    if (data.end_time <= data.start_time) {
-      setError("End time must be after start time.");
-      setLoading(false);
-      return;
-    }
-
-    const supabase = createClient();
-    const { data: apt, error: dbError } = await supabase
-      .from("appointments")
-      .insert(data)
-      .select("appointment_code")
-      .single();
-
-    if (dbError) {
-      setError("Failed to create appointment. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    setSuccess(apt.appointment_code);
-    setLoading(false);
-    router.refresh();
+    startTransition(async () => {
+      const result = await createAppointment(formData);
+      if (result.error) {
+        setError(result.error);
+      } else if ("appointmentCode" in result) {
+        setSuccess(result.appointmentCode);
+      }
+    });
   }
 
   if (success) {
@@ -96,12 +58,9 @@ function NewAppointmentModal({ onClose }: { onClose: () => void }) {
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Appointment Created</h3>
             <p className="mt-2 text-sm text-gray-600">
-              Appointment Code: <span className="font-mono font-semibold">{success}</span>
+              Code: <span className="font-mono font-semibold">{success}</span>
             </p>
-            <button
-              onClick={onClose}
-              className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-            >
+            <button onClick={onClose} className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
               Done
             </button>
           </div>
@@ -115,9 +74,7 @@ function NewAppointmentModal({ onClose }: { onClose: () => void }) {
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900">New Appointment</h2>
 
-        {error && (
-          <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
-        )}
+        {error && <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
@@ -157,7 +114,7 @@ function NewAppointmentModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Appointment Type</label>
+            <label className="block text-sm font-medium text-gray-700">Type</label>
             <select name="appointment_type" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
               <option value="">Select type...</option>
               <option value="Initial Assessment">Initial Assessment</option>
@@ -173,11 +130,9 @@ function NewAppointmentModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Cancel
-            </button>
-            <button type="submit" disabled={loading} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
-              {loading ? "Creating..." : "Create Appointment"}
+            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={isPending} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+              {isPending ? "Creating..." : "Create Appointment"}
             </button>
           </div>
         </form>

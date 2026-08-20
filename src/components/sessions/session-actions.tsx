@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { startSession, completeSession } from "@/app/(dashboard)/sessions/actions";
 
 interface SessionActionsProps {
   session: {
@@ -13,53 +12,22 @@ interface SessionActionsProps {
 }
 
 export function SessionActions({ session }: SessionActionsProps) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [showNotes, setShowNotes] = useState(false);
 
-  async function handleStart() {
-    setLoading(true);
-    const supabase = createClient();
-
-    await supabase
-      .from("sessions")
-      .update({ status: "in_progress", started_at: new Date().toISOString() })
-      .eq("id", session.id);
-
-    if (session.appointment_id) {
-      await supabase
-        .from("appointments")
-        .update({ status: "in_session" })
-        .eq("id", session.appointment_id);
-    }
-
-    setLoading(false);
-    router.refresh();
+  function handleStart() {
+    startTransition(async () => {
+      const result = await startSession(session.id, session.appointment_id);
+      if (result.error) alert(result.error);
+    });
   }
 
-  async function handleComplete(notes: string) {
-    setLoading(true);
-    const supabase = createClient();
-
-    await supabase
-      .from("sessions")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        session_notes: notes || null,
-      })
-      .eq("id", session.id);
-
-    if (session.appointment_id) {
-      await supabase
-        .from("appointments")
-        .update({ status: "completed" })
-        .eq("id", session.appointment_id);
-    }
-
-    setLoading(false);
-    setShowNotes(false);
-    router.refresh();
+  function handleComplete(notes: string) {
+    startTransition(async () => {
+      const result = await completeSession(session.id, session.appointment_id, notes);
+      if (result.error) alert(result.error);
+      else setShowNotes(false);
+    });
   }
 
   if (session.status === "completed" || session.status === "cancelled") {
@@ -72,7 +40,7 @@ export function SessionActions({ session }: SessionActionsProps) {
         {session.status === "waiting" && (
           <button
             onClick={handleStart}
-            disabled={loading}
+            disabled={isPending}
             className="rounded-md bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:opacity-50"
           >
             Start
@@ -81,7 +49,7 @@ export function SessionActions({ session }: SessionActionsProps) {
         {session.status === "in_progress" && (
           <button
             onClick={() => setShowNotes(true)}
-            disabled={loading}
+            disabled={isPending}
             className="rounded-md bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
           >
             Complete
@@ -93,7 +61,7 @@ export function SessionActions({ session }: SessionActionsProps) {
         <CompleteSessionModal
           onClose={() => setShowNotes(false)}
           onComplete={handleComplete}
-          loading={loading}
+          loading={isPending}
         />
       )}
     </>

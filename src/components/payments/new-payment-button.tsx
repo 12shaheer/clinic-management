@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
+import { getUnpaidInvoices, createPayment } from "@/app/(dashboard)/payments/actions";
 
 export function NewPaymentButton() {
   const [open, setOpen] = useState(false);
@@ -20,27 +19,27 @@ export function NewPaymentButton() {
   );
 }
 
+interface InvoiceItem {
+  id: string;
+  invoice_code: string;
+  patient_id: string;
+  total: number;
+  status: string;
+  patients: { first_name: string; last_name: string } | null;
+}
+
 function NewPaymentModal({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
-  const [invoices, setInvoices] = useState<{ id: string; invoice_code: string; patient_id: string; total: number; status: string; patients: { first_name: string; last_name: string } | null }[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from("invoices")
-      .select("id, invoice_code, patient_id, total, status, patients(first_name, last_name)")
-      .in("status", ["unpaid", "partially_paid"])
-      .then(({ data }) => {
-        if (data) setInvoices(data as unknown as typeof invoices);
-      });
+    getUnpaidInvoices().then((data) => setInvoices(data as unknown as InvoiceItem[]));
   }, []);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     const formData = new FormData(e.currentTarget);
@@ -50,70 +49,17 @@ function NewPaymentModal({ onClose }: { onClose: () => void }) {
 
     if (!invoiceId || !amount || !paymentMethod) {
       setError("Please fill all required fields.");
-      setLoading(false);
       return;
     }
 
-    if (amount <= 0) {
-      setError("Amount must be greater than zero.");
-      setLoading(false);
-      return;
-    }
-
-    const invoice = invoices.find((i) => i.id === invoiceId);
-    if (!invoice) {
-      setError("Invalid invoice selected.");
-      setLoading(false);
-      return;
-    }
-
-    const supabase = createClient();
-
-    const { data: payment, error: payError } = await supabase
-      .from("payments")
-      .insert({
-        patient_id: invoice.patient_id,
-        invoice_id: invoiceId,
-        amount,
-        payment_method: paymentMethod,
-        payment_status: "completed",
-        paid_at: new Date().toISOString(),
-      })
-      .select("id, payment_code")
-      .single();
-
-    if (payError) {
-      setError("Failed to create payment.");
-      setLoading(false);
-      return;
-    }
-
-    // Generate receipt
-    await supabase.from("receipts").insert({
-      payment_id: payment.id,
-      patient_id: invoice.patient_id,
-      invoice_id: invoiceId,
-      amount,
+    startTransition(async () => {
+      const result = await createPayment(invoiceId, amount, paymentMethod);
+      if (result.error) {
+        setError(result.error);
+      } else if ("paymentCode" in result) {
+        setSuccess(result.paymentCode);
+      }
     });
-
-    // Update invoice status
-    const { data: allPayments } = await supabase
-      .from("payments")
-      .select("amount")
-      .eq("invoice_id", invoiceId)
-      .eq("payment_status", "completed");
-
-    const totalPaid = allPayments?.reduce((sum, p) => sum + Number(p.amount), 0) ?? 0;
-    const invoiceTotal = Number(invoice.total);
-
-    await supabase
-      .from("invoices")
-      .update({ status: totalPaid >= invoiceTotal ? "paid" : "partially_paid" })
-      .eq("id", invoiceId);
-
-    setSuccess(payment.payment_code);
-    setLoading(false);
-    router.refresh();
   }
 
   if (success) {
@@ -145,9 +91,7 @@ function NewPaymentModal({ onClose }: { onClose: () => void }) {
       <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900">Record Payment</h2>
 
-        {error && (
-          <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
-        )}
+        {error && <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
@@ -180,11 +124,9 @@ function NewPaymentModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Cancel
-            </button>
-            <button type="submit" disabled={loading} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
-              {loading ? "Processing..." : "Record Payment"}
+            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={isPending} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+              {isPending ? "Processing..." : "Record Payment"}
             </button>
           </div>
         </form>

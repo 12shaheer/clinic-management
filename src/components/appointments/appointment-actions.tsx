@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { checkInAppointment, cancelAppointment } from "@/app/(dashboard)/appointments/actions";
 
 interface AppointmentActionsProps {
   appointment: {
@@ -14,47 +13,21 @@ interface AppointmentActionsProps {
 }
 
 export function AppointmentActions({ appointment }: AppointmentActionsProps) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleCheckIn() {
-    setLoading(true);
-    const supabase = createClient();
-
-    const { error: aptError } = await supabase
-      .from("appointments")
-      .update({ status: "checked_in" })
-      .eq("id", appointment.id);
-
-    if (aptError) {
-      alert("Failed to check in patient.");
-      setLoading(false);
-      return;
-    }
-
-    await supabase.from("sessions").insert({
-      appointment_id: appointment.id,
-      patient_id: appointment.patient_id,
-      physiotherapist_id: appointment.physiotherapist_id,
-      status: "waiting",
+  function handleCheckIn() {
+    startTransition(async () => {
+      const result = await checkInAppointment(appointment.id, appointment.patient_id, appointment.physiotherapist_id);
+      if (result.error) alert(result.error);
     });
-
-    setLoading(false);
-    router.refresh();
   }
 
-  async function handleCancel() {
+  function handleCancel() {
     if (!confirm("Are you sure you want to cancel this appointment?")) return;
-    setLoading(true);
-    const supabase = createClient();
-
-    await supabase
-      .from("appointments")
-      .update({ status: "cancelled" })
-      .eq("id", appointment.id);
-
-    setLoading(false);
-    router.refresh();
+    startTransition(async () => {
+      const result = await cancelAppointment(appointment.id);
+      if (result.error) alert(result.error);
+    });
   }
 
   if (appointment.status === "completed" || appointment.status === "cancelled") {
@@ -66,7 +39,7 @@ export function AppointmentActions({ appointment }: AppointmentActionsProps) {
       {(appointment.status === "scheduled" || appointment.status === "confirmed") && (
         <button
           onClick={handleCheckIn}
-          disabled={loading}
+          disabled={isPending}
           className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
         >
           Check In
@@ -75,7 +48,7 @@ export function AppointmentActions({ appointment }: AppointmentActionsProps) {
       {appointment.status !== "checked_in" && appointment.status !== "in_session" && (
         <button
           onClick={handleCancel}
-          disabled={loading}
+          disabled={isPending}
           className="rounded-md bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
         >
           Cancel
