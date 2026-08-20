@@ -1,16 +1,30 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jystgnyadxwxxyubqwbv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5c3RnbnlhZHh3eHh5dWJxd2J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNjQ5NDEsImV4cCI6MjEwMjc0MDk0MX0.kc7Tc-yOSFNYK137MN6z-1970mtwL1ku-yfi_J-R-Ng"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jystgnyadxwxxyubqwbv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5c3RnbnlhZHh3eHh5dWJxd2J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNjQ5NDEsImV4cCI6MjEwMjc0MDk0MX0.kc7Tc-yOSFNYK137MN6z-1970mtwL1ku-yfi_J-R-Ng"
+      }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jystgnyadxwxxyubqwbv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5c3RnbnlhZHh3eHh5dWJxd2J2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNjQ5NDEsImV4cCI6MjEwMjc0MDk0MX0.kc7Tc-yOSFNYK137MN6z-1970mtwL1ku-yfi_J-R-Ng"
+      }
+    }
   },
   "submit": {
     "production": {}
