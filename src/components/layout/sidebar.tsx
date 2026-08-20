@@ -28,7 +28,7 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-gray-200 bg-white">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden md:flex w-64 flex-col border-r border-gray-200 bg-white">
       <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6">
         <div className="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center">
           <span className="text-white font-bold text-sm">C</span>

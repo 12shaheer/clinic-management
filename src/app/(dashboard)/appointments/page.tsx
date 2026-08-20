@@ -44,10 +44,10 @@ export default async function AppointmentsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage clinic appointments</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Appointments</h1>
+          <p className="mt-0.5 text-xs md:text-sm text-gray-500">Manage clinic appointments</p>
         </div>
         <NewAppointmentButton />
       </div>
@@ -94,8 +94,39 @@ export default async function AppointmentsPage({
         </form>
       </div>
 
-      {/* Table */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
+      {/* Mobile card view */}
+      <div className="mt-6 space-y-3 md:hidden">
+        {sorted.length > 0 ? (
+          sorted.map((apt) => {
+            const patient = apt.patients as { first_name: string; last_name: string; patient_code: string } | null;
+            const physio = apt.physiotherapists as { first_name: string; last_name: string; physio_code: string } | null;
+            return (
+              <div key={apt.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {patient?.first_name} {patient?.last_name}
+                  </p>
+                  <StatusBadge status={apt.status} />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {format(new Date(apt.appointment_date), "MMM d")} &middot; {apt.start_time}{apt.end_time ? ` - ${apt.end_time}` : ""} &middot; Dr. {physio?.first_name}
+                </p>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="font-mono text-xs text-gray-400">{apt.appointment_code}</span>
+                  <AppointmentActions appointment={apt} />
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="py-12 text-center">
+            <p className="text-sm text-gray-500">No appointments found.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="mt-6 hidden md:block rounded-xl border border-gray-200 bg-white overflow-hidden">
         {sorted.length > 0 ? (
           <table className="w-full text-sm">
             <thead>

@@ -31,10 +31,10 @@ export default async function PatientsPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Patients</h1>
+          <p className="mt-0.5 text-xs md:text-sm text-gray-500">
             Manage patient records
           </p>
         </div>
@@ -43,7 +43,44 @@ export default async function PatientsPage({
 
       <PatientSearch currentQuery={params.q} currentStatus={params.status} />
 
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
+      {/* Mobile card view */}
+      <div className="mt-6 space-y-3 md:hidden">
+        {patients && patients.length > 0 ? (
+          patients.map((patient) => (
+            <Link
+              key={patient.id}
+              href={`/patients/${patient.id}`}
+              className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 active:bg-gray-50"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-50">
+                <span className="text-sm font-semibold text-primary-600">
+                  {patient.first_name.charAt(0)}{patient.last_name.charAt(0)}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {patient.first_name} {patient.last_name}
+                </p>
+                <p className="text-xs text-gray-500">{patient.patient_code} &middot; {patient.phone}</p>
+              </div>
+              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                patient.status === "active" ? "bg-green-50 text-green-700" :
+                patient.status === "inactive" ? "bg-gray-100 text-gray-600" :
+                "bg-amber-50 text-amber-700"
+              }`}>
+                {patient.status}
+              </span>
+            </Link>
+          ))
+        ) : (
+          <div className="py-12 text-center">
+            <p className="text-sm text-gray-500">No patients found.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="mt-6 hidden md:block rounded-xl border border-gray-200 bg-white overflow-hidden">
         {patients && patients.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
