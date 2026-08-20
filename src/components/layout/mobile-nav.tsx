@@ -22,8 +22,8 @@ export function MobileNav({ user, onLogout }: MobileNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white md:hidden">
-      <div className="flex items-center justify-around py-2 pb-[env(safe-area-inset-bottom,8px)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white md:hidden shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+      <div className="flex items-center justify-around pt-3 pb-[max(env(safe-area-inset-bottom,12px),12px)]">
         {tabs.map((tab) => {
           const isActive = pathname.startsWith(tab.href);
           return (
@@ -31,11 +31,11 @@ export function MobileNav({ user, onLogout }: MobileNavProps) {
               key={tab.name}
               href={tab.href}
               className={clsx(
-                "flex flex-col items-center gap-0.5 px-3 py-1 text-xs font-medium transition-colors",
+                "flex flex-col items-center gap-1 px-4 py-1.5 text-xs font-medium transition-colors",
                 isActive ? "text-primary-600" : "text-gray-500"
               )}
             >
-              <tab.icon className={clsx("h-5 w-5", isActive ? "text-primary-600" : "text-gray-400")} />
+              <tab.icon className={clsx("h-6 w-6", isActive ? "text-primary-600" : "text-gray-400")} />
               {tab.name}
             </Link>
           );
