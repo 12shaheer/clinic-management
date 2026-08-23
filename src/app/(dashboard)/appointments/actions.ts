@@ -55,6 +55,37 @@ export async function checkInAppointment(appointmentId: string) {
   return { success: true };
 }
 
+export async function createInvoiceForAppointment(appointmentId: string, patientId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: invoice, error } = await supabase
+    .from("invoices")
+    .insert({
+      patient_id: patientId,
+      appointment_id: appointmentId,
+      subtotal: 0,
+      discount: 0,
+      total: 0,
+      status: "paid",
+    })
+    .select("id, invoice_code")
+    .single();
+
+  if (error) return { error: "Failed to create invoice. " + error.message };
+
+  await supabase
+    .from("appointments")
+    .update({ status: "completed" })
+    .eq("id", appointmentId);
+
+  revalidatePath("/appointments");
+  revalidatePath("/invoices");
+  revalidatePath("/dashboard");
+  return { invoiceCode: invoice.invoice_code };
+}
+
 export async function cancelAppointment(appointmentId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

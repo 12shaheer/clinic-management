@@ -1,12 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
-import { checkInAppointment, cancelAppointment } from "@/app/(dashboard)/appointments/actions";
+import { checkInAppointment, cancelAppointment, createInvoiceForAppointment } from "@/app/(dashboard)/appointments/actions";
 
 interface AppointmentActionsProps {
   appointment: {
     id: string;
     status: string;
+    patient_id: string;
   };
 }
 
@@ -16,6 +17,13 @@ export function AppointmentActions({ appointment }: AppointmentActionsProps) {
   function handleCheckIn() {
     startTransition(async () => {
       const result = await checkInAppointment(appointment.id);
+      if (result.error) alert(result.error);
+    });
+  }
+
+  function handleCreateInvoice() {
+    startTransition(async () => {
+      const result = await createInvoiceForAppointment(appointment.id, appointment.patient_id);
       if (result.error) alert(result.error);
     });
   }
@@ -41,6 +49,15 @@ export function AppointmentActions({ appointment }: AppointmentActionsProps) {
           className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
         >
           Check In
+        </button>
+      )}
+      {appointment.status === "checked_in" && (
+        <button
+          onClick={handleCreateInvoice}
+          disabled={isPending}
+          className="rounded-md bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+        >
+          Create Invoice
         </button>
       )}
       {appointment.status !== "checked_in" && (

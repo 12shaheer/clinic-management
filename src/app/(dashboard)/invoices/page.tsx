@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { format } from "date-fns";
 import Link from "next/link";
 import { NewInvoiceButton } from "@/components/invoices/new-invoice-button";
-import { InvoiceActions } from "@/components/invoices/invoice-actions";
 
 export default async function InvoicesPage() {
   const supabase = await createClient();
@@ -65,17 +64,12 @@ export default async function InvoicesPage() {
                     </td>
                     <td className="px-6 py-4 text-gray-600">{format(new Date(inv.issued_at), "MMM d, yyyy")}</td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/invoices/${inv.id}`}
-                          className="text-xs font-medium text-primary-600 hover:text-primary-700"
-                        >
-                          View
-                        </Link>
-                        {(inv.status === "unpaid" || inv.status === "partially_paid") && (
-                          <InvoiceActions invoiceId={inv.id} total={Number(inv.total)} />
-                        )}
-                      </div>
+                      <Link
+                        href={`/invoices/${inv.id}`}
+                        className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                      >
+                        View
+                      </Link>
                     </td>
                   </tr>
                 );

@@ -38,7 +38,7 @@ export default async function AppointmentsPage({
 
   // Sort: active statuses first, completed/cancelled last
   const sorted = appointments?.sort((a, b) => {
-    const priority: Record<string, number> = { checked_in: 0, confirmed: 1, scheduled: 2, completed: 3, cancelled: 4, no_show: 5 };
+    const priority: Record<string, number> = { scheduled: 0, confirmed: 1, checked_in: 2, completed: 3, cancelled: 4, no_show: 5 };
     return (priority[a.status] ?? 7) - (priority[b.status] ?? 7);
   }) ?? [];
 
