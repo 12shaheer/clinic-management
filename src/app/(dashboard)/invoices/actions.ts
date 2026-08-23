@@ -20,6 +20,7 @@ export async function createInvoice(formData: FormData) {
   const patientId = formData.get("patient_id") as string;
   const subtotal = parseFloat(formData.get("subtotal") as string);
   const discount = parseFloat(formData.get("discount") as string) || 0;
+  const collectedBy = (formData.get("collected_by") as string) || "reception";
 
   if (!patientId || !subtotal || subtotal <= 0) {
     return { error: "Patient and subtotal are required." };
@@ -38,6 +39,7 @@ export async function createInvoice(formData: FormData) {
       discount,
       total,
       status: "paid",
+      collected_by: collectedBy,
     })
     .select("id, invoice_code")
     .single();
