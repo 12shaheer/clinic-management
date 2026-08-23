@@ -7,6 +7,10 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  ScrollView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
@@ -23,6 +27,7 @@ export default function BillingScreen() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showNewInvoice, setShowNewInvoice] = useState(false);
 
   const fetchData = useCallback(async () => {
     const [{ data: inv }, { data: pay }] = await Promise.all([
@@ -84,6 +89,12 @@ export default function BillingScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
+          ListHeaderComponent={
+            <TouchableOpacity style={styles.newButton} onPress={() => setShowNewInvoice(true)}>
+              <Ionicons name="add-circle" size={20} color="#2563EB" />
+              <Text style={styles.newButtonText}>New Invoice</Text>
+            </TouchableOpacity>
+          }
           renderItem={({ item }) => (
             <Card style={styles.card}>
               <View style={styles.cardTop}>
@@ -147,9 +158,252 @@ export default function BillingScreen() {
           }
         />
       )}
+
+      <NewInvoiceModal
+        visible={showNewInvoice}
+        onClose={() => setShowNewInvoice(false)}
+        onCreated={() => {
+          setShowNewInvoice(false);
+          fetchData();
+        }}
+      />
     </View>
   );
 }
+
+function NewInvoiceModal({
+  visible,
+  onClose,
+  onCreated,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; first_name: string; last_name: string; phone: string; patient_code: string; gender: string | null }>>([]);
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; first_name: string; last_name: string; phone: string; patient_code: string } | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [subtotal, setSubtotal] = useState("");
+  const [discount, setDiscount] = useState("0");
+  const [collectedBy, setCollectedBy] = useState<"reception" | "doctor">("reception");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setPhoneSearch("");
+      setSearchResults([]);
+      setSelectedPatient(null);
+      setSubtotal("");
+      setDiscount("0");
+      setCollectedBy("reception");
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (phoneSearch.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      setSearching(true);
+      const { data } = await supabase
+        .from("patients")
+        .select("id, first_name, last_name, phone, patient_code, gender")
+        .ilike("phone", `%${phoneSearch}%`)
+        .eq("status", "active")
+        .limit(5);
+      setSearchResults(data ?? []);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [phoneSearch]);
+
+  async function handleCreate() {
+    if (!selectedPatient) {
+      Alert.alert("Required", "Please search and select a patient.");
+      return;
+    }
+    const amount = parseFloat(subtotal);
+    if (!amount || amount <= 0) {
+      Alert.alert("Required", "Please enter a valid amount.");
+      return;
+    }
+    const disc = parseFloat(discount) || 0;
+    const total = amount - disc;
+    if (total <= 0) {
+      Alert.alert("Error", "Total after discount must be greater than zero.");
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.from("invoices").insert({
+      patient_id: selectedPatient.id,
+      subtotal: amount,
+      discount: disc,
+      total,
+      status: "paid",
+      collected_by: collectedBy,
+    });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert("Error", error.message);
+    } else {
+      onCreated();
+    }
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={invoiceModalStyles.header}>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={invoiceModalStyles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={invoiceModalStyles.title}>New Invoice</Text>
+        <TouchableOpacity onPress={handleCreate} disabled={loading}>
+          {loading ? <ActivityIndicator size="small" color="#2563EB" /> : <Text style={invoiceModalStyles.saveText}>Save</Text>}
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={invoiceModalStyles.body} keyboardShouldPersistTaps="handled">
+        <Text style={invoiceModalStyles.label}>Patient (search by phone)</Text>
+        {selectedPatient ? (
+          <View style={invoiceModalStyles.selectedPatient}>
+            <View style={{ flex: 1 }}>
+              <Text style={invoiceModalStyles.selectedName}>{selectedPatient.first_name} {selectedPatient.last_name}</Text>
+              <Text style={invoiceModalStyles.selectedPhone}>{selectedPatient.phone} · {selectedPatient.patient_code}</Text>
+            </View>
+            <TouchableOpacity onPress={() => { setSelectedPatient(null); setPhoneSearch(""); }}>
+              <Ionicons name="close-circle" size={22} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={{ position: "relative" }}>
+              <TextInput
+                style={invoiceModalStyles.input}
+                value={phoneSearch}
+                onChangeText={setPhoneSearch}
+                placeholder="Enter phone number..."
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+              />
+              {searching && <ActivityIndicator size="small" color="#2563EB" style={{ position: "absolute", right: 12, top: 14 }} />}
+            </View>
+            {searchResults.length > 0 && (
+              <View style={invoiceModalStyles.searchResults}>
+                {searchResults.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={invoiceModalStyles.searchItem}
+                    onPress={() => { setSelectedPatient(p); setSearchResults([]); }}
+                  >
+                    <Text style={invoiceModalStyles.searchName}>{p.first_name} {p.last_name}</Text>
+                    <Text style={invoiceModalStyles.searchPhone}>{p.phone} · {p.patient_code}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {phoneSearch.length >= 3 && !searching && searchResults.length === 0 && (
+              <Text style={invoiceModalStyles.noResults}>No patient found with this number.</Text>
+            )}
+          </>
+        )}
+
+        <Text style={invoiceModalStyles.label}>Subtotal (PKR)</Text>
+        <TextInput
+          style={invoiceModalStyles.input}
+          value={subtotal}
+          onChangeText={setSubtotal}
+          placeholder="Amount"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="numeric"
+        />
+
+        <Text style={invoiceModalStyles.label}>Discount (PKR)</Text>
+        <TextInput
+          style={invoiceModalStyles.input}
+          value={discount}
+          onChangeText={setDiscount}
+          placeholder="0"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="numeric"
+        />
+
+        <Text style={invoiceModalStyles.label}>Collected By</Text>
+        <View style={invoiceModalStyles.chipRow}>
+          <TouchableOpacity
+            style={[invoiceModalStyles.chip, collectedBy === "reception" && invoiceModalStyles.chipActive]}
+            onPress={() => setCollectedBy("reception")}
+          >
+            <Text style={[invoiceModalStyles.chipText, collectedBy === "reception" && invoiceModalStyles.chipTextActive]}>At Reception</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[invoiceModalStyles.chip, collectedBy === "doctor" && invoiceModalStyles.chipActive]}
+            onPress={() => setCollectedBy("doctor")}
+          >
+            <Text style={[invoiceModalStyles.chipText, collectedBy === "doctor" && invoiceModalStyles.chipTextActive]}>By the Doctor</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </Modal>
+  );
+}
+
+const invoiceModalStyles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  title: { fontSize: 17, fontWeight: "600", color: "#111827" },
+  cancelText: { fontSize: 16, color: "#6B7280" },
+  saveText: { fontSize: 16, fontWeight: "600", color: "#2563EB" },
+  body: { padding: 16 },
+  label: { fontSize: 14, fontWeight: "500", color: "#374151", marginTop: 14, marginBottom: 8 },
+  input: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#111827",
+  },
+  selectedPatient: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 10,
+    padding: 12,
+  },
+  selectedName: { fontSize: 15, fontWeight: "600", color: "#111827" },
+  selectedPhone: { fontSize: 13, color: "#6B7280", marginTop: 2 },
+  searchResults: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    marginTop: 6,
+    overflow: "hidden",
+  },
+  searchItem: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  searchName: { fontSize: 14, fontWeight: "600", color: "#111827" },
+  searchPhone: { fontSize: 12, color: "#6B7280", marginTop: 2 },
+  noResults: { fontSize: 13, color: "#9CA3AF", marginTop: 8 },
+  chipRow: { flexDirection: "row", gap: 8 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F3F4F6" },
+  chipActive: { backgroundColor: "#2563EB" },
+  chipText: { fontSize: 14, color: "#374151", fontWeight: "500" },
+  chipTextActive: { color: "#FFFFFF" },
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -185,6 +439,22 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: "#FFFFFF",
+  },
+  newButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+    marginBottom: 16,
+  },
+  newButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2563EB",
   },
   listContent: {
     padding: 16,

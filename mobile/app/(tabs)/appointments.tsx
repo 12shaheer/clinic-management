@@ -171,10 +171,12 @@ function NewAppointmentModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [patients, setPatients] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
   const [physios, setPhysios] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; first_name: string; last_name: string; phone: string; patient_code: string; gender: string | null }>>([]);
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; first_name: string; last_name: string; phone: string; patient_code: string } | null>(null);
+  const [searching, setSearching] = useState(false);
   const [form, setForm] = useState({
-    patient_id: "",
     physiotherapist_id: "",
     appointment_date: format(new Date(), "yyyy-MM-dd"),
     start_time: "",
@@ -185,22 +187,43 @@ function NewAppointmentModal({
 
   useEffect(() => {
     if (visible) {
-      supabase.from("patients").select("id, first_name, last_name").eq("status", "active")
-        .then(({ data }) => setPatients(data ?? []));
       supabase.from("physiotherapists").select("id, first_name, last_name").eq("status", "active")
         .then(({ data }) => setPhysios(data ?? []));
+    } else {
+      setPhoneSearch("");
+      setSearchResults([]);
+      setSelectedPatient(null);
     }
   }, [visible]);
 
+  useEffect(() => {
+    if (phoneSearch.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      setSearching(true);
+      const { data } = await supabase
+        .from("patients")
+        .select("id, first_name, last_name, phone, patient_code, gender")
+        .ilike("phone", `%${phoneSearch}%`)
+        .eq("status", "active")
+        .limit(5);
+      setSearchResults(data ?? []);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [phoneSearch]);
+
   async function handleCreate() {
-    if (!form.patient_id || !form.physiotherapist_id || !form.appointment_date || !form.start_time) {
-      Alert.alert("Required", "Please fill patient, physiotherapist, date, and start time.");
+    if (!selectedPatient || !form.physiotherapist_id || !form.appointment_date || !form.start_time) {
+      Alert.alert("Required", "Please select a patient, physiotherapist, date, and start time.");
       return;
     }
 
     setLoading(true);
     const { error } = await supabase.from("appointments").insert({
-      patient_id: form.patient_id,
+      patient_id: selectedPatient.id,
       physiotherapist_id: form.physiotherapist_id,
       appointment_date: form.appointment_date,
       start_time: form.start_time,
@@ -212,7 +235,9 @@ function NewAppointmentModal({
     if (error) {
       Alert.alert("Error", error.message);
     } else {
-      setForm({ patient_id: "", physiotherapist_id: "", appointment_date: format(new Date(), "yyyy-MM-dd"), start_time: "", end_time: "", notes: "" });
+      setForm({ physiotherapist_id: "", appointment_date: format(new Date(), "yyyy-MM-dd"), start_time: "", end_time: "", notes: "" });
+      setSelectedPatient(null);
+      setPhoneSearch("");
       onCreated();
     }
   }
@@ -228,21 +253,50 @@ function NewAppointmentModal({
           {loading ? <ActivityIndicator size="small" color="#2563EB" /> : <Text style={modalStyles.saveText}>Save</Text>}
         </TouchableOpacity>
       </View>
-      <ScrollView style={modalStyles.body}>
-        <Text style={modalStyles.label}>Patient</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={modalStyles.chipRow}>
-          {patients.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              style={[modalStyles.chip, form.patient_id === p.id && modalStyles.chipActive]}
-              onPress={() => setForm((f) => ({ ...f, patient_id: p.id }))}
-            >
-              <Text style={[modalStyles.chipText, form.patient_id === p.id && modalStyles.chipTextActive]}>
-                {p.first_name} {p.last_name}
-              </Text>
+      <ScrollView style={modalStyles.body} keyboardShouldPersistTaps="handled">
+        <Text style={modalStyles.label}>Patient (search by phone)</Text>
+        {selectedPatient ? (
+          <View style={modalStyles.selectedPatient}>
+            <View style={{ flex: 1 }}>
+              <Text style={modalStyles.selectedName}>{selectedPatient.first_name} {selectedPatient.last_name}</Text>
+              <Text style={modalStyles.selectedPhone}>{selectedPatient.phone} · {selectedPatient.patient_code}</Text>
+            </View>
+            <TouchableOpacity onPress={() => { setSelectedPatient(null); setPhoneSearch(""); }}>
+              <Ionicons name="close-circle" size={22} color="#6B7280" />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </View>
+        ) : (
+          <>
+            <View style={{ position: "relative" }}>
+              <TextInput
+                style={modalStyles.input}
+                value={phoneSearch}
+                onChangeText={setPhoneSearch}
+                placeholder="Enter phone number..."
+                placeholderTextColor="#9CA3AF"
+                keyboardType="phone-pad"
+              />
+              {searching && <ActivityIndicator size="small" color="#2563EB" style={{ position: "absolute", right: 12, top: 14 }} />}
+            </View>
+            {searchResults.length > 0 && (
+              <View style={modalStyles.searchResults}>
+                {searchResults.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={modalStyles.searchItem}
+                    onPress={() => { setSelectedPatient(p); setSearchResults([]); }}
+                  >
+                    <Text style={modalStyles.searchName}>{p.first_name} {p.last_name}</Text>
+                    <Text style={modalStyles.searchPhone}>{p.phone} · {p.patient_code}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {phoneSearch.length >= 3 && !searching && searchResults.length === 0 && (
+              <Text style={modalStyles.noResults}>No patient found with this number.</Text>
+            )}
+          </>
+        )}
 
         <Text style={modalStyles.label}>Physiotherapist</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={modalStyles.chipRow}>
@@ -441,5 +495,53 @@ const modalStyles = StyleSheet.create({
   },
   chipTextActive: {
     color: "#FFFFFF",
+  },
+  selectedPatient: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 10,
+    padding: 12,
+  },
+  selectedName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  selectedPhone: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  searchResults: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    marginTop: 6,
+    overflow: "hidden",
+  },
+  searchItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  searchName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  searchPhone: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  noResults: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    marginTop: 8,
   },
 });

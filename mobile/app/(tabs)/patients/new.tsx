@@ -55,7 +55,11 @@ export default function NewPatientScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert("Error", "Failed to create patient. " + error.message);
+      if (error.code === "23505" && error.message.includes("phone")) {
+        Alert.alert("Duplicate Phone", "A patient with this phone number already exists.");
+      } else {
+        Alert.alert("Error", "Failed to create patient. " + error.message);
+      }
     } else {
       Alert.alert("Success", "Patient created successfully.", [
         { text: "OK", onPress: () => router.back() },
