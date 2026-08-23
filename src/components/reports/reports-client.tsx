@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateReport, sendReportEmail, type DateRange } from "@/app/(dashboard)/reports/actions";
+import { generateReport, downloadReportCSV, type DateRange } from "@/app/(dashboard)/reports/actions";
 
 const DATE_RANGES: { value: DateRange; label: string }[] = [
   { value: "today", label: "Today" },
@@ -37,13 +37,11 @@ export function ReportsClient() {
   const [range, setRange] = useState<DateRange>("today");
   const [report, setReport] = useState<ReportData | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isSending, startSending] = useTransition();
+  const [isDownloading, startDownload] = useTransition();
   const [error, setError] = useState("");
-  const [emailStatus, setEmailStatus] = useState("");
 
   function handleGenerate() {
     setError("");
-    setEmailStatus("");
     startTransition(async () => {
       const result = await generateReport(range);
       if ("error" in result) {
@@ -54,15 +52,22 @@ export function ReportsClient() {
     });
   }
 
-  function handleSendEmail() {
-    setEmailStatus("");
+  function handleDownload() {
     setError("");
-    startSending(async () => {
-      const result = await sendReportEmail(range);
+    startDownload(async () => {
+      const result = await downloadReportCSV(range);
       if ("error" in result) {
         setError(result.error!);
       } else {
-        setEmailStatus("Report sent to itztheshaheer@gmail.com");
+        const blob = new Blob([result.csv!], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = result.filename!;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
     });
   }
@@ -92,17 +97,16 @@ export function ReportsClient() {
               {isPending ? "Generating..." : "Generate Report"}
             </button>
             <button
-              onClick={handleSendEmail}
-              disabled={isSending || isPending}
+              onClick={handleDownload}
+              disabled={isDownloading || isPending}
               className="rounded-lg border border-primary-600 bg-white px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 disabled:opacity-50"
             >
-              {isSending ? "Sending..." : "Email Report"}
+              {isDownloading ? "Preparing..." : "Download CSV"}
             </button>
           </div>
         </div>
 
         {error && <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-        {emailStatus && <div className="mt-4 rounded-md bg-green-50 p-3 text-sm text-green-700">{emailStatus}</div>}
       </div>
 
       {report && (
