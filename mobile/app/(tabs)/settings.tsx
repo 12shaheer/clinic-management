@@ -1,9 +1,11 @@
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
 
   function handleLogout() {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -24,6 +26,18 @@ export default function SettingsScreen() {
         <Text style={styles.role}>{user?.role ?? "admin"}</Text>
         <Text style={styles.email}>{user?.email ?? ""}</Text>
       </View>
+
+      {user?.role === "admin" && (
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/reports" as any)}>
+            <View style={[styles.menuIcon, { backgroundColor: "#EFF6FF" }]}>
+              <Ionicons name="bar-chart-outline" size={20} color="#2563EB" />
+            </View>
+            <Text style={styles.menuLabel}>Reports</Text>
+            <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.section}>
         <MenuItem icon="person-outline" label="Account" />
