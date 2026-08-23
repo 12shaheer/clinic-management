@@ -5,11 +5,11 @@ import { revalidatePath } from "next/cache";
 
 export async function getInvoiceFormData() {
   const supabase = await createClient();
-  const [{ data: patients }, { data: sessions }] = await Promise.all([
-    supabase.from("patients").select("id, first_name, last_name, patient_code").eq("status", "active"),
-    supabase.from("sessions").select("id, session_code, patient_id").eq("status", "completed").order("created_at", { ascending: false }).limit(20),
-  ]);
-  return { patients: patients ?? [], sessions: sessions ?? [] };
+  const { data: patients } = await supabase
+    .from("patients")
+    .select("id, first_name, last_name, patient_code")
+    .eq("status", "active");
+  return { patients: patients ?? [] };
 }
 
 export async function createInvoice(formData: FormData) {
@@ -18,7 +18,6 @@ export async function createInvoice(formData: FormData) {
   if (!user) return { error: "Not authenticated" };
 
   const patientId = formData.get("patient_id") as string;
-  const sessionId = (formData.get("session_id") as string) || null;
   const subtotal = parseFloat(formData.get("subtotal") as string);
   const discount = parseFloat(formData.get("discount") as string) || 0;
 
@@ -35,7 +34,6 @@ export async function createInvoice(formData: FormData) {
     .from("invoices")
     .insert({
       patient_id: patientId,
-      session_id: sessionId,
       subtotal,
       discount,
       total,

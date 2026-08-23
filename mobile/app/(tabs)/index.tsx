@@ -15,8 +15,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 interface DashboardData {
   todayAppointments: number;
-  completedSessions: number;
-  waitingPatients: number;
+  completedAppointments: number;
+  checkedInPatients: number;
   todayRevenue: number;
   recentAppointments: Array<{
     id: string;
@@ -39,8 +39,8 @@ export default function DashboardScreen() {
 
     const [
       { count: todayAppointments },
-      { count: completedSessions },
-      { count: waitingPatients },
+      { count: completedAppointments },
+      { count: checkedInPatients },
       { data: todayPayments },
       { data: recentAppointments },
     ] = await Promise.all([
@@ -49,14 +49,15 @@ export default function DashboardScreen() {
         .select("*", { count: "exact", head: true })
         .eq("appointment_date", today),
       supabase
-        .from("sessions")
+        .from("appointments")
         .select("*", { count: "exact", head: true })
-        .eq("status", "completed")
-        .gte("completed_at", `${today}T00:00:00`),
+        .eq("appointment_date", today)
+        .eq("status", "completed"),
       supabase
-        .from("sessions")
+        .from("appointments")
         .select("*", { count: "exact", head: true })
-        .eq("status", "waiting"),
+        .eq("appointment_date", today)
+        .eq("status", "checked_in"),
       supabase
         .from("payments")
         .select("amount")
@@ -74,8 +75,8 @@ export default function DashboardScreen() {
 
     setData({
       todayAppointments: todayAppointments ?? 0,
-      completedSessions: completedSessions ?? 0,
-      waitingPatients: waitingPatients ?? 0,
+      completedAppointments: completedAppointments ?? 0,
+      checkedInPatients: checkedInPatients ?? 0,
       todayRevenue,
       recentAppointments: (recentAppointments as DashboardData["recentAppointments"]) ?? [],
     });
@@ -111,8 +112,8 @@ export default function DashboardScreen() {
 
       <View style={styles.statsGrid}>
         <StatCard title="Appointments" value={data!.todayAppointments} color="#2563EB" bg="#EFF6FF" />
-        <StatCard title="Completed" value={data!.completedSessions} color="#15803D" bg="#F0FDF4" />
-        <StatCard title="Waiting" value={data!.waitingPatients} color="#D97706" bg="#FFFBEB" />
+        <StatCard title="Completed" value={data!.completedAppointments} color="#15803D" bg="#F0FDF4" />
+        <StatCard title="Checked In" value={data!.checkedInPatients} color="#D97706" bg="#FFFBEB" />
         <StatCard title="Revenue" value={`PKR ${data!.todayRevenue.toLocaleString()}`} color="#059669" bg="#ECFDF5" />
       </View>
 

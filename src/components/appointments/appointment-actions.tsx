@@ -7,8 +7,6 @@ interface AppointmentActionsProps {
   appointment: {
     id: string;
     status: string;
-    patient_id: string;
-    physiotherapist_id: string;
   };
 }
 
@@ -17,7 +15,7 @@ export function AppointmentActions({ appointment }: AppointmentActionsProps) {
 
   function handleCheckIn() {
     startTransition(async () => {
-      const result = await checkInAppointment(appointment.id, appointment.patient_id, appointment.physiotherapist_id);
+      const result = await checkInAppointment(appointment.id);
       if (result.error) alert(result.error);
     });
   }
@@ -45,7 +43,7 @@ export function AppointmentActions({ appointment }: AppointmentActionsProps) {
           Check In
         </button>
       )}
-      {appointment.status !== "checked_in" && appointment.status !== "in_session" && (
+      {appointment.status !== "checked_in" && (
         <button
           onClick={handleCancel}
           disabled={isPending}

@@ -19,19 +19,13 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound();
 
-  const [{ data: appointments }, { data: sessions }, { data: invoices }, { data: payments }] =
+  const [{ data: appointments }, { data: invoices }, { data: payments }] =
     await Promise.all([
       supabase
         .from("appointments")
         .select("*, physiotherapists(first_name, last_name)")
         .eq("patient_id", id)
         .order("appointment_date", { ascending: false })
-        .limit(10),
-      supabase
-        .from("sessions")
-        .select("*, physiotherapists(first_name, last_name)")
-        .eq("patient_id", id)
-        .order("created_at", { ascending: false })
         .limit(10),
       supabase
         .from("invoices")
@@ -130,42 +124,6 @@ export default async function PatientDetailPage({
         )}
       </div>
 
-      {/* Sessions */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Session History</h2>
-        {sessions && sessions.length > 0 ? (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  <th className="pb-3 pr-4">Code</th>
-                  <th className="pb-3 pr-4">Date</th>
-                  <th className="pb-3 pr-4">Physiotherapist</th>
-                  <th className="pb-3 pr-4">Status</th>
-                  <th className="pb-3">Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {sessions.map((session) => {
-                  const physio = session.physiotherapists as { first_name: string; last_name: string } | null;
-                  return (
-                    <tr key={session.id}>
-                      <td className="py-3 pr-4 font-mono text-xs">{session.session_code}</td>
-                      <td className="py-3 pr-4">{format(new Date(session.created_at), "MMM d, yyyy")}</td>
-                      <td className="py-3 pr-4">Dr. {physio?.first_name} {physio?.last_name}</td>
-                      <td className="py-3 pr-4"><StatusBadge status={session.status} /></td>
-                      <td className="py-3 max-w-[200px] truncate text-gray-500">{session.session_notes || "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-gray-500">No sessions yet.</p>
-        )}
-      </div>
-
       {/* Invoices & Payments */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-gray-200 bg-white p-6">
@@ -230,14 +188,11 @@ function StatusBadge({ status }: { status: string }) {
     scheduled: "bg-blue-50 text-blue-700",
     confirmed: "bg-indigo-50 text-indigo-700",
     checked_in: "bg-amber-50 text-amber-700",
-    in_session: "bg-purple-50 text-purple-700",
     completed: "bg-green-50 text-green-700",
     cancelled: "bg-red-50 text-red-700",
     no_show: "bg-gray-100 text-gray-600",
     active: "bg-green-50 text-green-700",
     inactive: "bg-gray-100 text-gray-600",
-    waiting: "bg-amber-50 text-amber-700",
-    in_progress: "bg-purple-50 text-purple-700",
     paid: "bg-green-50 text-green-700",
     unpaid: "bg-red-50 text-red-700",
     partially_paid: "bg-amber-50 text-amber-700",

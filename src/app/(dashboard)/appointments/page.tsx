@@ -38,7 +38,7 @@ export default async function AppointmentsPage({
 
   // Sort: active statuses first, completed/cancelled last
   const sorted = appointments?.sort((a, b) => {
-    const priority: Record<string, number> = { checked_in: 0, in_session: 1, confirmed: 2, scheduled: 3, completed: 4, cancelled: 5, no_show: 6 };
+    const priority: Record<string, number> = { checked_in: 0, confirmed: 1, scheduled: 2, completed: 3, cancelled: 4, no_show: 5 };
     return (priority[a.status] ?? 7) - (priority[b.status] ?? 7);
   }) ?? [];
 
@@ -70,7 +70,6 @@ export default async function AppointmentsPage({
             <option value="scheduled">Scheduled</option>
             <option value="confirmed">Confirmed</option>
             <option value="checked_in">Checked In</option>
-            <option value="in_session">In Session</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
             <option value="no_show">No Show</option>
@@ -182,7 +181,6 @@ function StatusBadge({ status }: { status: string }) {
     scheduled: "bg-blue-50 text-blue-700",
     confirmed: "bg-indigo-50 text-indigo-700",
     checked_in: "bg-amber-50 text-amber-700",
-    in_session: "bg-purple-50 text-purple-700",
     completed: "bg-green-50 text-green-700",
     cancelled: "bg-red-50 text-red-700",
     no_show: "bg-gray-100 text-gray-600",

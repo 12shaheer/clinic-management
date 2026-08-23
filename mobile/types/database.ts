@@ -6,12 +6,9 @@ export type AppointmentStatus =
   | "scheduled"
   | "confirmed"
   | "checked_in"
-  | "in_session"
   | "completed"
   | "cancelled"
   | "no_show";
-
-export type SessionStatus = "waiting" | "in_progress" | "completed" | "cancelled";
 
 export type InvoiceStatus = "unpaid" | "partially_paid" | "paid" | "cancelled";
 
@@ -68,26 +65,11 @@ export interface Appointment {
   physiotherapists?: { first_name: string; last_name: string };
 }
 
-export interface Session {
-  id: string;
-  session_code: string;
-  appointment_id: string;
-  patient_id: string;
-  physiotherapist_id: string;
-  started_at: string | null;
-  completed_at: string | null;
-  session_notes: string | null;
-  status: SessionStatus;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Invoice {
   id: string;
   invoice_code: string;
   patient_id: string;
   appointment_id: string | null;
-  session_id: string | null;
   subtotal: number;
   discount: number;
   total: number;
@@ -104,7 +86,6 @@ export interface Payment {
   patient_id: string;
   invoice_id: string;
   appointment_id: string | null;
-  session_id: string | null;
   amount: number;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;

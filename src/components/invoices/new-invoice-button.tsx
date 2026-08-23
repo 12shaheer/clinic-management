@@ -24,19 +24,13 @@ function NewInvoiceModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<string | null>(null);
   const [patients, setPatients] = useState<{ id: string; first_name: string; last_name: string; patient_code: string }[]>([]);
-  const [sessions, setSessions] = useState<{ id: string; session_code: string; patient_id: string }[]>([]);
   const [selectedPatient, setSelectedPatient] = useState("");
 
   useEffect(() => {
-    getInvoiceFormData().then(({ patients, sessions }) => {
+    getInvoiceFormData().then(({ patients }) => {
       setPatients(patients);
-      setSessions(sessions);
     });
   }, []);
-
-  const filteredSessions = selectedPatient
-    ? sessions.filter((s) => s.patient_id === selectedPatient)
-    : sessions;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,16 +91,6 @@ function NewInvoiceModal({ onClose }: { onClose: () => void }) {
               <option value="">Select patient...</option>
               {patients.map((p) => (
                 <option key={p.id} value={p.id}>{p.first_name} {p.last_name} ({p.patient_code})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Session (optional)</label>
-            <select name="session_id" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-              <option value="">No session linked</option>
-              {filteredSessions.map((s) => (
-                <option key={s.id} value={s.id}>{s.session_code}</option>
               ))}
             </select>
           </div>

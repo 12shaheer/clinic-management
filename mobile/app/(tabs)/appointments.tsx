@@ -66,11 +66,9 @@ export default function AppointmentsScreen() {
       actions.push({ text: "Confirm", onPress: () => handleStatusUpdate(apt.id, "confirmed") });
       actions.push({ text: "Cancel", style: "destructive", onPress: () => handleStatusUpdate(apt.id, "cancelled") });
     } else if (apt.status === "confirmed") {
-      actions.push({ text: "Check In", onPress: () => handleCheckIn(apt) });
+      actions.push({ text: "Check In", onPress: () => handleStatusUpdate(apt.id, "checked_in") });
       actions.push({ text: "Cancel", style: "destructive", onPress: () => handleStatusUpdate(apt.id, "cancelled") });
     } else if (apt.status === "checked_in") {
-      actions.push({ text: "Start Session", onPress: () => handleStatusUpdate(apt.id, "in_session") });
-    } else if (apt.status === "in_session") {
       actions.push({ text: "Complete", onPress: () => handleStatusUpdate(apt.id, "completed") });
     }
 
@@ -80,27 +78,6 @@ export default function AppointmentsScreen() {
       `${apt.appointment_date} at ${apt.start_time}`,
       actions
     );
-  }
-
-  async function handleCheckIn(apt: Appointment) {
-    const { error: aptError } = await supabase
-      .from("appointments")
-      .update({ status: "checked_in" })
-      .eq("id", apt.id);
-
-    if (aptError) {
-      Alert.alert("Error", "Failed to check in.");
-      return;
-    }
-
-    await supabase.from("sessions").insert({
-      appointment_id: apt.id,
-      patient_id: apt.patient_id,
-      physiotherapist_id: apt.physiotherapist_id,
-      status: "waiting",
-    });
-
-    fetchAppointments();
   }
 
   const today = format(new Date(), "yyyy-MM-dd");

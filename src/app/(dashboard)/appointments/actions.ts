@@ -38,27 +38,19 @@ export async function createAppointment(formData: FormData) {
   return { appointmentCode: apt.appointment_code };
 }
 
-export async function checkInAppointment(appointmentId: string, patientId: string, physiotherapistId: string) {
+export async function checkInAppointment(appointmentId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { error: aptError } = await supabase
+  const { error } = await supabase
     .from("appointments")
     .update({ status: "checked_in" })
     .eq("id", appointmentId);
 
-  if (aptError) return { error: "Failed to check in." };
-
-  await supabase.from("sessions").insert({
-    appointment_id: appointmentId,
-    patient_id: patientId,
-    physiotherapist_id: physiotherapistId,
-    status: "waiting",
-  });
+  if (error) return { error: "Failed to check in." };
 
   revalidatePath("/appointments");
-  revalidatePath("/sessions");
   revalidatePath("/dashboard");
   return { success: true };
 }

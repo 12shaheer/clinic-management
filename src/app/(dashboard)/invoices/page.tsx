@@ -9,7 +9,7 @@ export default async function InvoicesPage() {
 
   const { data: invoices } = await supabase
     .from("invoices")
-    .select("*, patients(first_name, last_name, patient_code), sessions(session_code)")
+    .select("*, patients(first_name, last_name, patient_code)")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -36,7 +36,6 @@ export default async function InvoicesPage() {
               <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 <th className="px-6 py-3">Invoice ID</th>
                 <th className="px-6 py-3">Patient</th>
-                <th className="px-6 py-3">Session</th>
                 <th className="px-6 py-3">Total</th>
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3">Date</th>
@@ -46,7 +45,6 @@ export default async function InvoicesPage() {
             <tbody className="divide-y divide-gray-100">
               {sorted.map((inv) => {
                 const patient = inv.patients as { first_name: string; last_name: string; patient_code: string } | null;
-                const session = inv.sessions as { session_code: string } | null;
                 return (
                   <tr key={inv.id} className={`hover:bg-gray-50 ${inv.status === "paid" || inv.status === "cancelled" ? "opacity-60" : ""}`}>
                     <td className="px-6 py-4 font-mono text-xs text-gray-600">{inv.invoice_code}</td>
@@ -54,7 +52,6 @@ export default async function InvoicesPage() {
                       <p className="font-medium text-gray-900">{patient?.first_name} {patient?.last_name}</p>
                       <p className="text-xs text-gray-500">{patient?.patient_code}</p>
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs text-gray-600">{session?.session_code ?? "—"}</td>
                     <td className="px-6 py-4 font-semibold text-gray-900">PKR {Number(inv.total).toLocaleString()}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${

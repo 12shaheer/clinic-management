@@ -14,7 +14,7 @@ export default async function InvoiceDetailPage({
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("*, patients(first_name, last_name, patient_code, phone, email, address), sessions(session_code)")
+    .select("*, patients(first_name, last_name, patient_code, phone, email, address)")
     .eq("id", id)
     .single();
 
@@ -27,7 +27,6 @@ export default async function InvoiceDetailPage({
     .order("created_at", { ascending: false });
 
   const patient = invoice.patients as { first_name: string; last_name: string; patient_code: string; phone: string; email: string | null; address: string | null };
-  const session = invoice.sessions as { session_code: string } | null;
   const totalPaid = payments?.filter(p => p.payment_status === "completed").reduce((sum, p) => sum + Number(p.amount), 0) ?? 0;
   const remaining = Number(invoice.total) - totalPaid;
 
@@ -68,8 +67,7 @@ export default async function InvoiceDetailPage({
           </div>
           <div className="text-right">
             <p className="text-xs font-semibold uppercase text-gray-400">Details</p>
-            {session && <p className="mt-1 text-sm text-gray-600">Session: {session.session_code}</p>}
-            <p className="text-sm text-gray-600">
+            <p className="mt-1 text-sm text-gray-600">
               Status: <span className={`font-medium ${
                 invoice.status === "paid" ? "text-green-700" :
                 invoice.status === "unpaid" ? "text-red-700" : "text-amber-700"

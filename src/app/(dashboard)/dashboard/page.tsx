@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { format } from "date-fns";
+import Link from "next/link";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -7,8 +8,8 @@ export default async function DashboardPage() {
 
   const [
     { count: todayAppointments },
-    { count: completedSessions },
-    { count: waitingPatients },
+    { count: completedAppointments },
+    { count: checkedInPatients },
     { data: todayPayments },
     { data: recentAppointments },
     { data: recentPayments },
@@ -19,14 +20,15 @@ export default async function DashboardPage() {
       .select("*", { count: "exact", head: true })
       .eq("appointment_date", today),
     supabase
-      .from("sessions")
+      .from("appointments")
       .select("*", { count: "exact", head: true })
-      .eq("status", "completed")
-      .gte("completed_at", `${today}T00:00:00`),
+      .eq("appointment_date", today)
+      .eq("status", "completed"),
     supabase
-      .from("sessions")
+      .from("appointments")
       .select("*", { count: "exact", head: true })
-      .eq("status", "waiting"),
+      .eq("appointment_date", today)
+      .eq("status", "checked_in"),
     supabase
       .from("payments")
       .select("amount")
@@ -62,10 +64,18 @@ export default async function DashboardPage() {
 
       {/* Stats Cards */}
       <div className="mt-4 md:mt-6 grid grid-cols-2 gap-3 md:gap-5 lg:grid-cols-4">
-        <StatCard title="Today's Appointments" value={todayAppointments ?? 0} color="blue" />
-        <StatCard title="Completed Sessions" value={completedSessions ?? 0} color="green" />
-        <StatCard title="Waiting Patients" value={waitingPatients ?? 0} color="amber" />
-        <StatCard title="Today's Revenue" value={`PKR ${todayRevenue.toLocaleString()}`} color="emerald" />
+        <Link href="/appointments">
+          <StatCard title="Today's Appointments" value={todayAppointments ?? 0} color="blue" />
+        </Link>
+        <Link href="/appointments">
+          <StatCard title="Completed" value={completedAppointments ?? 0} color="green" />
+        </Link>
+        <Link href="/appointments">
+          <StatCard title="Checked In" value={checkedInPatients ?? 0} color="amber" />
+        </Link>
+        <Link href="/invoices">
+          <StatCard title="Today's Revenue" value={`PKR ${todayRevenue.toLocaleString()}`} color="emerald" />
+        </Link>
       </div>
 
       <div className="mt-5 md:mt-8 grid grid-cols-1 gap-4 md:gap-8 lg:grid-cols-2">
@@ -207,14 +217,11 @@ function StatusBadge({ status }: { status: string }) {
     scheduled: "bg-blue-50 text-blue-700",
     confirmed: "bg-indigo-50 text-indigo-700",
     checked_in: "bg-amber-50 text-amber-700",
-    in_session: "bg-purple-50 text-purple-700",
     completed: "bg-green-50 text-green-700",
     cancelled: "bg-red-50 text-red-700",
     no_show: "bg-gray-100 text-gray-600",
     active: "bg-green-50 text-green-700",
     inactive: "bg-gray-100 text-gray-600",
-    waiting: "bg-amber-50 text-amber-700",
-    in_progress: "bg-purple-50 text-purple-700",
   };
 
   return (
