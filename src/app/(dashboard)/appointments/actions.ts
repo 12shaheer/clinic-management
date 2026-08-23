@@ -55,20 +55,26 @@ export async function checkInAppointment(appointmentId: string) {
   return { success: true };
 }
 
-export async function createInvoiceForAppointment(appointmentId: string, patientId: string) {
+export async function createInvoiceForAppointment(appointmentId: string, patientId: string, subtotal: number, discount: number, collectedBy: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  if (!subtotal || subtotal <= 0) return { error: "Total amount is required." };
+
+  const total = subtotal - discount;
+  if (total <= 0) return { error: "Total after discount must be greater than zero." };
 
   const { data: invoice, error } = await supabase
     .from("invoices")
     .insert({
       patient_id: patientId,
       appointment_id: appointmentId,
-      subtotal: 0,
-      discount: 0,
-      total: 0,
+      subtotal,
+      discount,
+      total,
       status: "paid",
+      collected_by: collectedBy,
     })
     .select("id, invoice_code")
     .single();
