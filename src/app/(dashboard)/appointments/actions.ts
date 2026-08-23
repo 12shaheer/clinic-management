@@ -108,14 +108,6 @@ export async function cancelAppointment(appointmentId: string) {
   return { success: true };
 }
 
-export async function getPatients() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("patients")
-    .select("id, first_name, last_name, patient_code")
-    .eq("status", "active");
-  return data ?? [];
-}
 
 export async function getPhysiotherapists() {
   const supabase = await createClient();

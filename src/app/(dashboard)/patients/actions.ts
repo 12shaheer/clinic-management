@@ -35,9 +35,32 @@ export async function createPatient(formData: FormData) {
     .single();
 
   if (error) {
+    if (error.code === "23505" && error.message.includes("phone")) {
+      return { error: "A patient with this phone number already exists." };
+    }
     return { error: "Failed to create patient. " + error.message };
   }
 
   revalidatePath("/patients");
   return { patientCode: patient.patient_code };
+}
+
+export async function searchPatientByPhone(phone: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  if (!phone || phone.length < 3) {
+    return { patients: [] };
+  }
+
+  const { data, error } = await supabase
+    .from("patients")
+    .select("id, first_name, last_name, phone, patient_code, gender, status")
+    .ilike("phone", `%${phone}%`)
+    .eq("status", "active")
+    .limit(5);
+
+  if (error) return { error: "Search failed." };
+  return { patients: data ?? [] };
 }

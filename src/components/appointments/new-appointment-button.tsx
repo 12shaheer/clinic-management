@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { createAppointment, getPatients, getPhysiotherapists } from "@/app/(dashboard)/appointments/actions";
+import { createAppointment, getPhysiotherapists } from "@/app/(dashboard)/appointments/actions";
+import { PatientPhoneLookup } from "@/components/patients/patient-phone-lookup";
 
 export function NewAppointmentButton() {
   const [open, setOpen] = useState(false);
@@ -22,19 +23,25 @@ export function NewAppointmentButton() {
 function NewAppointmentModal({ onClose }: { onClose: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [patients, setPatients] = useState<{ id: string; first_name: string; last_name: string; patient_code: string }[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; first_name: string; last_name: string; phone: string; patient_code: string; gender: string | null; status: string } | null>(null);
   const [physios, setPhysios] = useState<{ id: string; first_name: string; last_name: string }[]>([]);
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    getPatients().then(setPatients);
     getPhysiotherapists().then(setPhysios);
   }, []);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+
+    if (!selectedPatient) {
+      setError("Please search and select a patient by phone number.");
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
+    formData.set("patient_id", selectedPatient.id);
 
     startTransition(async () => {
       const result = await createAppointment(formData);
@@ -79,12 +86,13 @@ function NewAppointmentModal({ onClose }: { onClose: () => void }) {
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Patient *</label>
-            <select name="patient_id" required className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-              <option value="">Select patient...</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>{p.first_name} {p.last_name} ({p.patient_code})</option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <PatientPhoneLookup
+                selectedPatient={selectedPatient}
+                onSelect={setSelectedPatient}
+                onClear={() => setSelectedPatient(null)}
+              />
+            </div>
           </div>
 
           <div>

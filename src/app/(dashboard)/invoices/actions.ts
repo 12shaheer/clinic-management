@@ -3,15 +3,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function getInvoiceFormData() {
-  const supabase = await createClient();
-  const { data: patients } = await supabase
-    .from("patients")
-    .select("id, first_name, last_name, patient_code")
-    .eq("status", "active");
-  return { patients: patients ?? [] };
-}
-
 export async function createInvoice(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
