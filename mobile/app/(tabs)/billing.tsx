@@ -13,6 +13,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -24,6 +25,7 @@ type Tab = "invoices" | "payments";
 
 export default function BillingScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const isAdmin = user?.role === "admin";
   const [tab, setTab] = useState<Tab>("invoices");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -74,37 +76,6 @@ export default function BillingScreen() {
     setRefreshing(false);
   }, [fetchData]);
 
-  async function handleConfirmPayment(invoiceId: string) {
-    Alert.alert(
-      "Confirm Payment",
-      "Mark this invoice as paid?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, Paid",
-          style: "default",
-          onPress: async () => {
-            const { error } = await supabase
-              .from("invoices")
-              .update({
-                status: "paid",
-                payment_confirmed_at: new Date().toISOString(),
-                confirmed_by: user?.id || null,
-              })
-              .eq("id", invoiceId)
-              .in("status", ["unpaid", "partially_paid"]);
-
-            if (error) {
-              Alert.alert("Error", error.message);
-            } else {
-              fetchData();
-            }
-          },
-        },
-      ]
-    );
-  }
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -150,33 +121,32 @@ export default function BillingScreen() {
             </TouchableOpacity>
           }
           renderItem={({ item }) => (
-            <Card style={styles.card}>
-              <View style={styles.cardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.patientName}>
-                    {item.patients?.first_name} {item.patients?.last_name}
-                  </Text>
-                  <Text style={styles.code}>{item.invoice_code}</Text>
+            <TouchableOpacity
+              onPress={() => router.push(`/(tabs)/patients/${item.patient_id}` as never)}
+              activeOpacity={0.7}
+            >
+              <Card style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.patientName}>
+                      {item.patients?.first_name} {item.patients?.last_name}
+                    </Text>
+                    <Text style={styles.code}>{item.invoice_code}</Text>
+                  </View>
+                  <StatusBadge status={item.status} />
                 </View>
-                <StatusBadge status={item.status} />
-              </View>
-              <View style={styles.cardBottom}>
-                <Text style={styles.amount}>PKR {item.total.toLocaleString()}</Text>
-                <Text style={styles.date}>{format(new Date(item.issued_at), "MMM d, yyyy")}</Text>
-              </View>
-              {item.discount > 0 && (
-                <Text style={styles.discount}>Discount: PKR {item.discount.toLocaleString()}</Text>
-              )}
-              {(item.status === "unpaid" || item.status === "partially_paid") && (
-                <TouchableOpacity
-                  style={styles.confirmButton}
-                  onPress={() => handleConfirmPayment(item.id)}
-                >
-                  <Ionicons name="checkmark-circle" size={16} color="#15803D" />
-                  <Text style={styles.confirmButtonText}>Confirm Payment</Text>
-                </TouchableOpacity>
-              )}
-            </Card>
+                <View style={styles.cardBottom}>
+                  <Text style={styles.amount}>PKR {item.total.toLocaleString()}</Text>
+                  <Text style={styles.date}>{format(new Date(item.issued_at), "MMM d, yyyy")}</Text>
+                </View>
+                {item.discount > 0 && (
+                  <Text style={styles.discount}>Discount: PKR {item.discount.toLocaleString()}</Text>
+                )}
+                {(item.status === "unpaid" || item.status === "partially_paid") && (
+                  <Text style={styles.tapHint}>Tap to open patient profile & confirm payment</Text>
+                )}
+              </Card>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -249,7 +219,6 @@ function NewInvoiceModal({
   const [searching, setSearching] = useState(false);
   const [subtotal, setSubtotal] = useState("");
   const [discount, setDiscount] = useState("0");
-  const [collectedBy, setCollectedBy] = useState<"reception" | "doctor">("reception");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -259,7 +228,6 @@ function NewInvoiceModal({
       setSelectedPatient(null);
       setSubtotal("");
       setDiscount("0");
-      setCollectedBy("reception");
     }
   }, [visible]);
 
@@ -306,14 +274,13 @@ function NewInvoiceModal({
       discount: disc,
       total,
       status: "unpaid",
-      collected_by: collectedBy,
     });
     setLoading(false);
 
     if (error) {
       Alert.alert("Error", error.message);
     } else {
-      Alert.alert("Invoice Created", "Invoice created as unpaid. Use 'Confirm Payment' once payment is received.");
+      Alert.alert("Invoice Created", "Go to patient profile to confirm payment when received.");
       onCreated();
     }
   }
@@ -394,25 +361,9 @@ function NewInvoiceModal({
           keyboardType="numeric"
         />
 
-        <Text style={invoiceModalStyles.label}>Collected By</Text>
-        <View style={invoiceModalStyles.chipRow}>
-          <TouchableOpacity
-            style={[invoiceModalStyles.chip, collectedBy === "reception" && invoiceModalStyles.chipActive]}
-            onPress={() => setCollectedBy("reception")}
-          >
-            <Text style={[invoiceModalStyles.chipText, collectedBy === "reception" && invoiceModalStyles.chipTextActive]}>At Reception</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[invoiceModalStyles.chip, collectedBy === "doctor" && invoiceModalStyles.chipActive]}
-            onPress={() => setCollectedBy("doctor")}
-          >
-            <Text style={[invoiceModalStyles.chipText, collectedBy === "doctor" && invoiceModalStyles.chipTextActive]}>By the Doctor</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={invoiceModalStyles.noteBox}>
           <Ionicons name="information-circle-outline" size={16} color="#92400E" />
-          <Text style={invoiceModalStyles.noteText}>Invoice will be created as unpaid. Confirm payment separately once received.</Text>
+          <Text style={invoiceModalStyles.noteText}>Invoice is created as unpaid. Confirm payment from the patient profile once received.</Text>
         </View>
       </ScrollView>
     </Modal>
@@ -467,11 +418,6 @@ const invoiceModalStyles = StyleSheet.create({
   searchName: { fontSize: 14, fontWeight: "600", color: "#111827" },
   searchPhone: { fontSize: 12, color: "#6B7280", marginTop: 2 },
   noResults: { fontSize: 13, color: "#9CA3AF", marginTop: 8 },
-  chipRow: { flexDirection: "row", gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F3F4F6" },
-  chipActive: { backgroundColor: "#2563EB" },
-  chipText: { fontSize: 14, color: "#374151", fontWeight: "500" },
-  chipTextActive: { color: "#FFFFFF" },
   noteBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -595,23 +541,11 @@ const styles = StyleSheet.create({
     color: "#D97706",
     marginTop: 4,
   },
-  confirmButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 10,
-    backgroundColor: "#F0FDF4",
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignSelf: "flex-start",
-  },
-  confirmButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
+  tapHint: {
+    fontSize: 11,
     color: "#15803D",
+    marginTop: 6,
+    fontStyle: "italic",
   },
   methodBadge: {
     backgroundColor: "#F3F4F6",

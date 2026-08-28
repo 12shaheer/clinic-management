@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import Link from "next/link";
 import { ConfirmPaymentButton } from "@/components/invoices/confirm-payment-button";
+import { SumPaymentButton } from "@/components/invoices/sum-payment-button";
 
 export default async function PatientDetailPage({
   params,
@@ -20,7 +21,7 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound();
 
-  const [{ data: appointments }, { data: invoices }, { data: payments }] =
+  const [{ data: appointments }, { data: invoices }] =
     await Promise.all([
       supabase
         .from("appointments")
@@ -33,18 +34,14 @@ export default async function PatientDetailPage({
         .select("*")
         .eq("patient_id", id)
         .order("created_at", { ascending: false })
-        .limit(20),
-      supabase
-        .from("payments")
-        .select("*")
-        .eq("patient_id", id)
-        .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(30),
     ]);
 
   const totalBilled = invoices?.reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
   const totalPaid = invoices?.filter(inv => inv.status === "paid").reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
   const totalUnpaid = invoices?.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid").reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
+  const unpaidInvoices = invoices?.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid") ?? [];
+  const paidInvoices = invoices?.filter(inv => inv.status === "paid" || inv.status === "cancelled") ?? [];
 
   return (
     <div>
@@ -88,6 +85,28 @@ export default async function PatientDetailPage({
         </div>
       </div>
 
+      {/* Unpaid Invoices + Payment Actions */}
+      {unpaidInvoices.length > 0 && (
+        <div className="mt-6 rounded-xl border border-red-200 bg-white p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-lg font-semibold text-gray-900">Unpaid Sessions</h2>
+            <SumPaymentButton patientId={id} totalUnpaid={totalUnpaid} />
+          </div>
+          <div className="mt-4 space-y-3">
+            {unpaidInvoices.map((inv) => (
+              <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-red-100 bg-red-50/50 p-3">
+                <div>
+                  <p className="text-sm font-mono">{inv.invoice_code}</p>
+                  <p className="text-xs text-gray-500">{format(new Date(inv.issued_at), "MMM d, yyyy")}</p>
+                  <p className="text-sm font-semibold mt-1">PKR {Number(inv.total).toLocaleString()}</p>
+                </div>
+                <ConfirmPaymentButton invoiceId={inv.id} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Personal Information */}
       <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
         <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
@@ -107,37 +126,26 @@ export default async function PatientDetailPage({
         )}
       </div>
 
-      {/* Credit History */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Credit History</h2>
-        {invoices && invoices.length > 0 ? (
+      {/* Paid History */}
+      {paidInvoices.length > 0 && (
+        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
           <div className="mt-4 space-y-3">
-            {invoices.map((inv) => (
-              <div key={inv.id} className={`flex items-center justify-between rounded-lg border p-3 ${
-                inv.status === "unpaid" ? "border-red-200 bg-red-50/50" :
-                inv.status === "partially_paid" ? "border-amber-200 bg-amber-50/50" :
-                "border-gray-100"
-              }`}>
+            {paidInvoices.map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
                 <div>
                   <p className="text-sm font-mono">{inv.invoice_code}</p>
                   <p className="text-xs text-gray-500">{format(new Date(inv.issued_at), "MMM d, yyyy")}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">PKR {Number(inv.total).toLocaleString()}</p>
-                    <StatusBadge status={inv.status} />
-                  </div>
-                  {(inv.status === "unpaid" || inv.status === "partially_paid") && (
-                    <ConfirmPaymentButton invoiceId={inv.id} />
-                  )}
+                <div className="text-right">
+                  <p className="text-sm font-semibold">PKR {Number(inv.total).toLocaleString()}</p>
+                  <StatusBadge status={inv.status} />
                 </div>
               </div>
             ))}
           </div>
-        ) : (
-          <p className="mt-4 text-sm text-gray-500">No invoices yet.</p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Appointment History */}
       <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
@@ -174,29 +182,6 @@ export default async function PatientDetailPage({
           </div>
         ) : (
           <p className="mt-4 text-sm text-gray-500">No appointments yet.</p>
-        )}
-      </div>
-
-      {/* Payments */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Payments</h2>
-        {payments && payments.length > 0 ? (
-          <div className="mt-4 space-y-3">
-            {payments.map((pay) => (
-              <div key={pay.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                <div>
-                  <p className="text-sm font-mono">{pay.payment_code}</p>
-                  <p className="text-xs text-gray-500">{pay.payment_method}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold">PKR {Number(pay.amount).toLocaleString()}</p>
-                  <StatusBadge status={pay.payment_status} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-gray-500">No payments.</p>
         )}
       </div>
     </div>

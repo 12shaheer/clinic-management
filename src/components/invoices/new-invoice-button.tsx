@@ -104,14 +104,6 @@ function NewInvoiceModal({ onClose }: { onClose: () => void }) {
             <input name="discount" type="number" step="0.01" min="0" defaultValue="0" className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Payment Collected By *</label>
-            <select name="collected_by" required className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-              <option value="reception">At Reception</option>
-              <option value="doctor">By the Doctor</option>
-            </select>
-          </div>
-
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
             <button type="submit" disabled={isPending} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
