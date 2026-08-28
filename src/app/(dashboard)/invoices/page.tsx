@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { format } from "date-fns";
 import Link from "next/link";
 import { NewInvoiceButton } from "@/components/invoices/new-invoice-button";
+import { ConfirmPaymentButton } from "@/components/invoices/confirm-payment-button";
 
 export default async function InvoicesPage() {
   const supabase = await createClient();
@@ -36,7 +37,7 @@ export default async function InvoicesPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Billing</h1>
           <p className="mt-1 text-sm text-gray-500">
             {isAdmin ? "All invoices" : "Today's invoices & pending payments"}
           </p>
@@ -50,10 +51,9 @@ export default async function InvoicesPage() {
           sorted.map((inv) => {
             const patient = inv.patients as { first_name: string; last_name: string; patient_code: string } | null;
             return (
-              <Link
+              <div
                 key={inv.id}
-                href={`/patients/${inv.patient_id}`}
-                className={`block rounded-xl border border-gray-200 bg-white p-4 active:bg-gray-50 ${inv.status === "paid" || inv.status === "cancelled" ? "opacity-60" : ""}`}
+                className={`rounded-xl border border-gray-200 bg-white p-4 ${inv.status === "paid" || inv.status === "cancelled" ? "opacity-60" : ""}`}
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -73,7 +73,18 @@ export default async function InvoicesPage() {
                   <p className="text-lg font-semibold text-gray-900">PKR {Number(inv.total).toLocaleString()}</p>
                   <p className="text-xs text-gray-500">{format(new Date(inv.issued_at), "MMM d, yyyy")}</p>
                 </div>
-              </Link>
+                {(inv.status === "unpaid" || inv.status === "partially_paid") && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <ConfirmPaymentButton invoiceId={inv.id} />
+                    <Link
+                      href={`/patients/${inv.patient_id}`}
+                      className="text-xs font-medium text-primary-600"
+                    >
+                      Patient Profile
+                    </Link>
+                  </div>
+                )}
+              </div>
             );
           })
         ) : (
@@ -120,12 +131,17 @@ export default async function InvoicesPage() {
                     </td>
                     <td className="px-6 py-4 text-gray-600">{format(new Date(inv.issued_at), "MMM d, yyyy")}</td>
                     <td className="px-6 py-4">
-                      <Link
-                        href={`/patients/${inv.patient_id}`}
-                        className="text-xs font-medium text-primary-600 hover:text-primary-700"
-                      >
-                        View Patient
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {(inv.status === "unpaid" || inv.status === "partially_paid") && (
+                          <ConfirmPaymentButton invoiceId={inv.id} />
+                        )}
+                        <Link
+                          href={`/patients/${inv.patient_id}`}
+                          className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                        >
+                          Profile
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );

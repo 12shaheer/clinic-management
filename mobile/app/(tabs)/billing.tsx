@@ -76,6 +76,36 @@ export default function BillingScreen() {
     setRefreshing(false);
   }, [fetchData]);
 
+  function handleConfirmPayment(invoiceId: string) {
+    Alert.alert(
+      "Confirm Payment",
+      "Where was payment received?",
+      [
+        {
+          text: "At Reception",
+          onPress: async () => {
+            await supabase
+              .from("invoices")
+              .update({ status: "paid", payment_confirmed_at: new Date().toISOString(), confirmed_by: user?.id || null, collected_by: "reception" })
+              .eq("id", invoiceId);
+            fetchData();
+          },
+        },
+        {
+          text: "By Doctor",
+          onPress: async () => {
+            await supabase
+              .from("invoices")
+              .update({ status: "paid", payment_confirmed_at: new Date().toISOString(), confirmed_by: user?.id || null, collected_by: "doctor" })
+              .eq("id", invoiceId);
+            fetchData();
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -143,7 +173,15 @@ export default function BillingScreen() {
                   <Text style={styles.discount}>Discount: PKR {item.discount.toLocaleString()}</Text>
                 )}
                 {(item.status === "unpaid" || item.status === "partially_paid") && (
-                  <Text style={styles.tapHint}>Tap to open patient profile & confirm payment</Text>
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity
+                      style={styles.confirmBtn}
+                      onPress={(e) => { e.stopPropagation(); handleConfirmPayment(item.id); }}
+                    >
+                      <Ionicons name="checkmark-circle" size={14} color="#15803D" />
+                      <Text style={styles.confirmBtnText}>Confirm Paid</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </Card>
             </TouchableOpacity>
@@ -541,11 +579,26 @@ const styles = StyleSheet.create({
     color: "#D97706",
     marginTop: 4,
   },
-  tapHint: {
-    fontSize: 11,
+  cardActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+  },
+  confirmBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  confirmBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
     color: "#15803D",
-    marginTop: 6,
-    fontStyle: "italic",
   },
   methodBadge: {
     backgroundColor: "#F3F4F6",

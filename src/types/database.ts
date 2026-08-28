@@ -30,6 +30,7 @@ export interface Patient {
   emergency_contact_phone: string | null;
   notes: string | null;
   status: PatientStatus;
+  credit_balance: number;
   created_at: string;
   updated_at: string;
 }

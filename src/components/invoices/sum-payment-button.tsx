@@ -19,12 +19,16 @@ export function SumPaymentButton({ patientId, totalUnpaid }: { patientId: string
       if (res.error) {
         setResult(res.error);
       } else {
-        setResult(`Payment applied to ${res.invoicesPaid} invoice(s)`);
+        let msg = `Payment applied to ${res.invoicesPaid} invoice(s).`;
+        if (res.advanceAmount && res.advanceAmount > 0) {
+          msg += ` PKR ${res.advanceAmount.toLocaleString()} added as advance credit.`;
+        }
+        setResult(msg);
         setAmount("");
         setTimeout(() => {
           setShowForm(false);
           setResult(null);
-        }, 2000);
+        }, 3000);
       }
     });
   }
@@ -41,10 +45,10 @@ export function SumPaymentButton({ patientId, totalUnpaid }: { patientId: string
   }
 
   return (
-    <div className="rounded-xl border border-primary-200 bg-primary-50 p-4">
+    <div className="rounded-xl border border-primary-200 bg-primary-50 p-4 w-full sm:w-auto">
       <h3 className="text-sm font-semibold text-gray-900">Sum Payment</h3>
       <p className="text-xs text-gray-500 mt-1">
-        Total unpaid: PKR {totalUnpaid.toLocaleString()} — enter amount to clear dues from oldest first.
+        Total unpaid: PKR {totalUnpaid.toLocaleString()}. Any excess will be stored as advance credit.
       </p>
 
       {result && (
@@ -64,6 +68,11 @@ export function SumPaymentButton({ patientId, totalUnpaid }: { patientId: string
             min="1"
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
+          {parseFloat(amount) > totalUnpaid && (
+            <p className="mt-1 text-xs text-blue-600">
+              PKR {(parseFloat(amount) - totalUnpaid).toLocaleString()} will be stored as advance credit
+            </p>
+          )}
         </div>
 
         <div>

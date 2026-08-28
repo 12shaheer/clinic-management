@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { ConfirmPaymentButton } from "@/components/invoices/confirm-payment-button";
 import { SumPaymentButton } from "@/components/invoices/sum-payment-button";
+import { ApplyCreditButton } from "@/components/invoices/apply-credit-button";
 
 export default async function PatientDetailPage({
   params,
@@ -21,7 +22,7 @@ export default async function PatientDetailPage({
 
   if (!patient) notFound();
 
-  const [{ data: appointments }, { data: invoices }] =
+  const [{ data: appointments }, { data: invoices }, { data: creditTransactions }] =
     await Promise.all([
       supabase
         .from("appointments")
@@ -35,6 +36,12 @@ export default async function PatientDetailPage({
         .eq("patient_id", id)
         .order("created_at", { ascending: false })
         .limit(30),
+      supabase
+        .from("credit_transactions")
+        .select("*")
+        .eq("patient_id", id)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
 
   const totalBilled = invoices?.reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
@@ -42,6 +49,7 @@ export default async function PatientDetailPage({
   const totalUnpaid = invoices?.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid").reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
   const unpaidInvoices = invoices?.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid") ?? [];
   const paidInvoices = invoices?.filter(inv => inv.status === "paid" || inv.status === "cancelled") ?? [];
+  const creditBalance = Number(patient.credit_balance ?? 0);
 
   return (
     <div>
@@ -70,24 +78,28 @@ export default async function PatientDetailPage({
       </div>
 
       {/* Credit Summary */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-sm font-medium text-gray-500">Total Billed</p>
-          <p className="mt-1 text-xl font-bold text-gray-900">PKR {totalBilled.toLocaleString()}</p>
+          <p className="text-xs font-medium text-gray-500">Total Billed</p>
+          <p className="mt-1 text-lg font-bold text-gray-900">PKR {totalBilled.toLocaleString()}</p>
         </div>
         <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-medium text-green-700">Paid</p>
-          <p className="mt-1 text-xl font-bold text-green-800">PKR {totalPaid.toLocaleString()}</p>
+          <p className="text-xs font-medium text-green-700">Paid</p>
+          <p className="mt-1 text-lg font-bold text-green-800">PKR {totalPaid.toLocaleString()}</p>
         </div>
         <div className={`rounded-xl border p-4 ${totalUnpaid > 0 ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"}`}>
-          <p className={`text-sm font-medium ${totalUnpaid > 0 ? "text-red-700" : "text-gray-500"}`}>Unpaid</p>
-          <p className={`mt-1 text-xl font-bold ${totalUnpaid > 0 ? "text-red-800" : "text-gray-900"}`}>PKR {totalUnpaid.toLocaleString()}</p>
+          <p className={`text-xs font-medium ${totalUnpaid > 0 ? "text-red-700" : "text-gray-500"}`}>Unpaid</p>
+          <p className={`mt-1 text-lg font-bold ${totalUnpaid > 0 ? "text-red-800" : "text-gray-900"}`}>PKR {totalUnpaid.toLocaleString()}</p>
+        </div>
+        <div className={`rounded-xl border p-4 ${creditBalance > 0 ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-white"}`}>
+          <p className={`text-xs font-medium ${creditBalance > 0 ? "text-blue-700" : "text-gray-500"}`}>Credit Balance</p>
+          <p className={`mt-1 text-lg font-bold ${creditBalance > 0 ? "text-blue-800" : "text-gray-900"}`}>PKR {creditBalance.toLocaleString()}</p>
         </div>
       </div>
 
       {/* Unpaid Invoices + Payment Actions */}
       {unpaidInvoices.length > 0 && (
-        <div className="mt-6 rounded-xl border border-red-200 bg-white p-6">
+        <div className="mt-6 rounded-xl border border-red-200 bg-white p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg font-semibold text-gray-900">Unpaid Sessions</h2>
             <SumPaymentButton patientId={id} totalUnpaid={totalUnpaid} />
@@ -100,7 +112,39 @@ export default async function PatientDetailPage({
                   <p className="text-xs text-gray-500">{format(new Date(inv.issued_at), "MMM d, yyyy")}</p>
                   <p className="text-sm font-semibold mt-1">PKR {Number(inv.total).toLocaleString()}</p>
                 </div>
-                <ConfirmPaymentButton invoiceId={inv.id} />
+                <div className="flex items-center gap-2 flex-wrap">
+                  {creditBalance > 0 && (
+                    <ApplyCreditButton patientId={id} invoiceId={inv.id} creditBalance={creditBalance} />
+                  )}
+                  <ConfirmPaymentButton invoiceId={inv.id} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Credit History */}
+      {(creditTransactions && creditTransactions.length > 0) && (
+        <div className="mt-6 rounded-xl border border-blue-200 bg-white p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900">Credit History</h2>
+          <p className="text-xs text-gray-500 mt-1">Advance payments and credit usage</p>
+          <div className="mt-4 space-y-3">
+            {creditTransactions.map((tx: { id: string; amount: number; type: string; description: string | null; created_at: string }) => (
+              <div key={tx.id} className={`flex items-center justify-between rounded-lg border p-3 ${
+                Number(tx.amount) > 0 ? "border-blue-100 bg-blue-50/50" : "border-gray-100"
+              }`}>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {tx.type === "advance_payment" ? "Advance Payment" :
+                     tx.type === "credit_used" ? "Credit Used" : "Refund"}
+                  </p>
+                  {tx.description && <p className="text-xs text-gray-500 mt-0.5">{tx.description}</p>}
+                  <p className="text-xs text-gray-400 mt-0.5">{format(new Date(tx.created_at), "MMM d, yyyy · h:mm a")}</p>
+                </div>
+                <p className={`text-sm font-bold ${Number(tx.amount) > 0 ? "text-blue-700" : "text-red-700"}`}>
+                  {Number(tx.amount) > 0 ? "+" : ""}PKR {Math.abs(Number(tx.amount)).toLocaleString()}
+                </p>
               </div>
             ))}
           </div>
@@ -108,7 +152,7 @@ export default async function PatientDetailPage({
       )}
 
       {/* Personal Information */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900">Personal Information</h2>
         <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <InfoItem label="Email" value={patient.email} />
@@ -128,14 +172,17 @@ export default async function PatientDetailPage({
 
       {/* Paid History */}
       {paidInvoices.length > 0 && (
-        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+        <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
           <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
           <div className="mt-4 space-y-3">
             {paidInvoices.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
                 <div>
                   <p className="text-sm font-mono">{inv.invoice_code}</p>
-                  <p className="text-xs text-gray-500">{format(new Date(inv.issued_at), "MMM d, yyyy")}</p>
+                  <p className="text-xs text-gray-500">
+                    {format(new Date(inv.issued_at), "MMM d, yyyy")}
+                    {inv.collected_by && <span> · {inv.collected_by === "credit" ? "Paid via credit" : `Collected at ${inv.collected_by}`}</span>}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold">PKR {Number(inv.total).toLocaleString()}</p>
@@ -148,7 +195,7 @@ export default async function PatientDetailPage({
       )}
 
       {/* Appointment History */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900">Appointment History</h2>
         {appointments && appointments.length > 0 ? (
           <div className="mt-4 overflow-x-auto">
