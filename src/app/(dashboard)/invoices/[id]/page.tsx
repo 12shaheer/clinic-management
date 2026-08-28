@@ -36,9 +36,9 @@ export default async function InvoiceDetailPage({
         &larr; Back to Invoices
       </Link>
 
-      <div className="mt-4 flex items-start justify-between">
+      <div className="mt-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{invoice.invoice_code}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{invoice.invoice_code}</h1>
           {invoice.payment_confirmed_at && (
             <p className="mt-1 text-xs text-green-700">
               Payment confirmed on {format(new Date(invoice.payment_confirmed_at), "MMM d, yyyy 'at' h:mm a")}
@@ -59,13 +59,13 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Print-friendly invoice */}
-      <div id="invoice-print" className="mt-6 rounded-xl border border-gray-200 bg-white p-8 print:border-0 print:shadow-none">
-        <div className="flex justify-between">
+      <div id="invoice-print" className="mt-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-8 print:border-0 print:shadow-none">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Clinic Management</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Clinic Management</h2>
             <p className="text-sm text-gray-500">Physiotherapy Clinic</p>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <p className="text-lg font-bold text-gray-900">INVOICE</p>
             <p className="font-mono text-sm text-gray-600">{invoice.invoice_code}</p>
             <p className="text-sm text-gray-500">
@@ -74,7 +74,7 @@ export default async function InvoiceDetailPage({
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-8">
+        <div className="mt-6 sm:mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
           <div>
             <p className="text-xs font-semibold uppercase text-gray-400">Bill To</p>
             <p className="mt-1 font-medium text-gray-900">{patient.first_name} {patient.last_name}</p>
