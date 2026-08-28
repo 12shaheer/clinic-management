@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { Card } from "@/components/Card";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { Invoice, Payment } from "@/types/database";
@@ -22,6 +23,8 @@ import type { Invoice, Payment } from "@/types/database";
 type Tab = "invoices" | "payments";
 
 export default function BillingScreen() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [tab, setTab] = useState<Tab>("invoices");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -30,12 +33,20 @@ export default function BillingScreen() {
   const [showNewInvoice, setShowNewInvoice] = useState(false);
 
   const fetchData = useCallback(async () => {
+    const today = new Date().toISOString().split("T")[0];
+
+    let invQuery = supabase
+      .from("invoices")
+      .select("*, patients(first_name, last_name, patient_code)")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (!isAdmin) {
+      invQuery = invQuery.or(`created_at.gte.${today},status.in.(unpaid,partially_paid)`);
+    }
+
     const [{ data: inv }, { data: pay }] = await Promise.all([
-      supabase
-        .from("invoices")
-        .select("*, patients(first_name, last_name, patient_code)")
-        .order("created_at", { ascending: false })
-        .limit(50),
+      invQuery,
       supabase
         .from("payments")
         .select("*, patients(first_name, last_name, patient_code)")
@@ -43,10 +54,15 @@ export default function BillingScreen() {
         .limit(50),
     ]);
 
-    setInvoices((inv as Invoice[]) ?? []);
+    const sortedInv = (inv ?? []).sort((a, b) => {
+      const priority: Record<string, number> = { unpaid: 0, partially_paid: 1, paid: 2, cancelled: 3 };
+      return (priority[a.status] ?? 4) - (priority[b.status] ?? 4);
+    });
+
+    setInvoices(sortedInv as Invoice[]);
     setPayments((pay as Payment[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     fetchData();
@@ -57,6 +73,37 @@ export default function BillingScreen() {
     await fetchData();
     setRefreshing(false);
   }, [fetchData]);
+
+  async function handleConfirmPayment(invoiceId: string) {
+    Alert.alert(
+      "Confirm Payment",
+      "Mark this invoice as paid?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes, Paid",
+          style: "default",
+          onPress: async () => {
+            const { error } = await supabase
+              .from("invoices")
+              .update({
+                status: "paid",
+                payment_confirmed_at: new Date().toISOString(),
+                confirmed_by: user?.id || null,
+              })
+              .eq("id", invoiceId)
+              .in("status", ["unpaid", "partially_paid"]);
+
+            if (error) {
+              Alert.alert("Error", error.message);
+            } else {
+              fetchData();
+            }
+          },
+        },
+      ]
+    );
+  }
 
   if (loading) {
     return (
@@ -82,6 +129,13 @@ export default function BillingScreen() {
           <Text style={[styles.tabText, tab === "payments" && styles.tabTextActive]}>Payments</Text>
         </TouchableOpacity>
       </View>
+
+      {!isAdmin && (
+        <View style={styles.infoBanner}>
+          <Ionicons name="information-circle-outline" size={16} color="#1D4ED8" />
+          <Text style={styles.infoBannerText}>Showing today&apos;s invoices & pending payments</Text>
+        </View>
+      )}
 
       {tab === "invoices" ? (
         <FlatList
@@ -112,6 +166,15 @@ export default function BillingScreen() {
               </View>
               {item.discount > 0 && (
                 <Text style={styles.discount}>Discount: PKR {item.discount.toLocaleString()}</Text>
+              )}
+              {(item.status === "unpaid" || item.status === "partially_paid") && (
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={() => handleConfirmPayment(item.id)}
+                >
+                  <Ionicons name="checkmark-circle" size={16} color="#15803D" />
+                  <Text style={styles.confirmButtonText}>Confirm Payment</Text>
+                </TouchableOpacity>
               )}
             </Card>
           )}
@@ -242,7 +305,7 @@ function NewInvoiceModal({
       subtotal: amount,
       discount: disc,
       total,
-      status: "paid",
+      status: "unpaid",
       collected_by: collectedBy,
     });
     setLoading(false);
@@ -250,6 +313,7 @@ function NewInvoiceModal({
     if (error) {
       Alert.alert("Error", error.message);
     } else {
+      Alert.alert("Invoice Created", "Invoice created as unpaid. Use 'Confirm Payment' once payment is received.");
       onCreated();
     }
   }
@@ -345,6 +409,11 @@ function NewInvoiceModal({
             <Text style={[invoiceModalStyles.chipText, collectedBy === "doctor" && invoiceModalStyles.chipTextActive]}>By the Doctor</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={invoiceModalStyles.noteBox}>
+          <Ionicons name="information-circle-outline" size={16} color="#92400E" />
+          <Text style={invoiceModalStyles.noteText}>Invoice will be created as unpaid. Confirm payment separately once received.</Text>
+        </View>
       </ScrollView>
     </Modal>
   );
@@ -403,6 +472,18 @@ const invoiceModalStyles = StyleSheet.create({
   chipActive: { backgroundColor: "#2563EB" },
   chipText: { fontSize: 14, color: "#374151", fontWeight: "500" },
   chipTextActive: { color: "#FFFFFF" },
+  noteBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 10,
+    padding: 12,
+  },
+  noteText: { fontSize: 13, color: "#92400E", flex: 1 },
 });
 
 const styles = StyleSheet.create({
@@ -439,6 +520,21 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: "#FFFFFF",
+  },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: "#EFF6FF",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  infoBannerText: {
+    fontSize: 12,
+    color: "#1D4ED8",
   },
   newButton: {
     flexDirection: "row",
@@ -498,6 +594,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#D97706",
     marginTop: 4,
+  },
+  confirmButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+  },
+  confirmButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#15803D",
   },
   methodBadge: {
     backgroundColor: "#F3F4F6",

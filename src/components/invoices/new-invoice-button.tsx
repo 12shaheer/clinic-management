@@ -53,14 +53,17 @@ function NewInvoiceModal({ onClose }: { onClose: () => void }) {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
         <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
           <div className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+              <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Invoice Created</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Invoice Created (Unpaid)</h3>
             <p className="mt-2 text-sm text-gray-600">
               Invoice: <span className="font-mono font-semibold">{success}</span>
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Use &quot;Confirm Payment&quot; once payment is received.
             </p>
             <button onClick={onClose} className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
               Done

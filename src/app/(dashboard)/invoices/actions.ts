@@ -29,7 +29,7 @@ export async function createInvoice(formData: FormData) {
       subtotal,
       discount,
       total,
-      status: "paid",
+      status: "unpaid",
       collected_by: collectedBy,
     })
     .select("id, invoice_code")
@@ -41,3 +41,29 @@ export async function createInvoice(formData: FormData) {
   return { invoiceCode: invoice.invoice_code };
 }
 
+export async function confirmPayment(invoiceId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: clinicUser } = await supabase
+    .from("clinic_users")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .single();
+
+  const { error } = await supabase
+    .from("invoices")
+    .update({
+      status: "paid",
+      payment_confirmed_at: new Date().toISOString(),
+      confirmed_by: clinicUser?.id || null,
+    })
+    .eq("id", invoiceId)
+    .in("status", ["unpaid", "partially_paid"]);
+
+  if (error) return { error: "Failed to confirm payment. " + error.message };
+
+  revalidatePath("/invoices");
+  return { success: true };
+}

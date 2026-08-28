@@ -73,6 +73,8 @@ export interface Invoice {
   total: number;
   status: InvoiceStatus;
   issued_at: string;
+  payment_confirmed_at: string | null;
+  confirmed_by: string | null;
   created_at: string;
   updated_at: string;
 }

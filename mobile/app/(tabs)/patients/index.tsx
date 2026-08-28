@@ -12,11 +12,14 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { Patient } from "@/types/database";
 
 export default function PatientsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filtered, setFiltered] = useState<Patient[]>([]);
   const [search, setSearch] = useState("");
@@ -24,16 +27,23 @@ export default function PatientsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchPatients = useCallback(async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("patients")
       .select("*")
       .order("created_at", { ascending: false });
+
+    if (!isAdmin) {
+      const today = new Date().toISOString().split("T")[0];
+      query = query.gte("created_at", today);
+    }
+
+    const { data } = await query;
 
     const list = (data as Patient[]) ?? [];
     setPatients(list);
     setFiltered(list);
     setLoading(false);
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     fetchPatients();
@@ -44,17 +54,30 @@ export default function PatientsScreen() {
       setFiltered(patients);
     } else {
       const q = search.toLowerCase();
-      setFiltered(
-        patients.filter(
-          (p) =>
-            p.first_name.toLowerCase().includes(q) ||
-            p.last_name.toLowerCase().includes(q) ||
-            p.patient_code.toLowerCase().includes(q) ||
-            p.phone.includes(q)
-        )
-      );
+      if (!isAdmin && search.length >= 3) {
+        supabase
+          .from("patients")
+          .select("*")
+          .or(
+            `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,patient_code.ilike.%${search}%`
+          )
+          .limit(20)
+          .then(({ data }) => {
+            setFiltered((data as Patient[]) ?? []);
+          });
+      } else {
+        setFiltered(
+          patients.filter(
+            (p) =>
+              p.first_name.toLowerCase().includes(q) ||
+              p.last_name.toLowerCase().includes(q) ||
+              p.patient_code.toLowerCase().includes(q) ||
+              p.phone.includes(q)
+          )
+        );
+      }
     }
-  }, [search, patients]);
+  }, [search, patients, isAdmin]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -88,10 +111,17 @@ export default function PatientsScreen() {
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Search patients..."
+          placeholder={isAdmin ? "Search patients..." : "Search by name, phone, or code..."}
           placeholderTextColor="#9CA3AF"
         />
       </View>
+
+      {!isAdmin && !search && (
+        <View style={styles.infoBanner}>
+          <Ionicons name="information-circle-outline" size={16} color="#1D4ED8" />
+          <Text style={styles.infoBannerText}>Showing today&apos;s patients. Search to find others.</Text>
+        </View>
+      )}
 
       <FlatList
         data={filtered}
@@ -122,7 +152,9 @@ export default function PatientsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No patients found</Text>
+            <Text style={styles.emptyText}>
+              {search ? "No patients found" : "No patients registered today"}
+            </Text>
           </View>
         }
       />
@@ -169,6 +201,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     margin: 16,
+    marginBottom: 8,
     backgroundColor: "#FFFFFF",
     borderRadius: 10,
     borderWidth: 1,
@@ -183,6 +216,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     color: "#111827",
+  },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: "#EFF6FF",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  infoBannerText: {
+    fontSize: 12,
+    color: "#1D4ED8",
   },
   listContent: {
     paddingHorizontal: 16,

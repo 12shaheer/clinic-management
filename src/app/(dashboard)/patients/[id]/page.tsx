@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import Link from "next/link";
+import { ConfirmPaymentButton } from "@/components/invoices/confirm-payment-button";
 
 export default async function PatientDetailPage({
   params,
@@ -32,7 +33,7 @@ export default async function PatientDetailPage({
         .select("*")
         .eq("patient_id", id)
         .order("created_at", { ascending: false })
-        .limit(10),
+        .limit(20),
       supabase
         .from("payments")
         .select("*")
@@ -40,6 +41,10 @@ export default async function PatientDetailPage({
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
+
+  const totalBilled = invoices?.reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
+  const totalPaid = invoices?.filter(inv => inv.status === "paid").reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
+  const totalUnpaid = invoices?.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid").reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
 
   return (
     <div>
@@ -53,7 +58,7 @@ export default async function PatientDetailPage({
           <h1 className="text-2xl font-bold text-gray-900">
             {patient.first_name} {patient.last_name}
           </h1>
-          <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
             <span className="font-mono">{patient.patient_code}</span>
             <span>&middot;</span>
             <span>{patient.phone}</span>
@@ -64,6 +69,22 @@ export default async function PatientDetailPage({
               {patient.status}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Credit Summary */}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <p className="text-sm font-medium text-gray-500">Total Billed</p>
+          <p className="mt-1 text-xl font-bold text-gray-900">PKR {totalBilled.toLocaleString()}</p>
+        </div>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+          <p className="text-sm font-medium text-green-700">Paid</p>
+          <p className="mt-1 text-xl font-bold text-green-800">PKR {totalPaid.toLocaleString()}</p>
+        </div>
+        <div className={`rounded-xl border p-4 ${totalUnpaid > 0 ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"}`}>
+          <p className={`text-sm font-medium ${totalUnpaid > 0 ? "text-red-700" : "text-gray-500"}`}>Unpaid</p>
+          <p className={`mt-1 text-xl font-bold ${totalUnpaid > 0 ? "text-red-800" : "text-gray-900"}`}>PKR {totalUnpaid.toLocaleString()}</p>
         </div>
       </div>
 
@@ -83,6 +104,38 @@ export default async function PatientDetailPage({
             <p className="text-sm font-medium text-gray-500">Notes</p>
             <p className="mt-1 text-sm text-gray-700">{patient.notes}</p>
           </div>
+        )}
+      </div>
+
+      {/* Credit History */}
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+        <h2 className="text-lg font-semibold text-gray-900">Credit History</h2>
+        {invoices && invoices.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {invoices.map((inv) => (
+              <div key={inv.id} className={`flex items-center justify-between rounded-lg border p-3 ${
+                inv.status === "unpaid" ? "border-red-200 bg-red-50/50" :
+                inv.status === "partially_paid" ? "border-amber-200 bg-amber-50/50" :
+                "border-gray-100"
+              }`}>
+                <div>
+                  <p className="text-sm font-mono">{inv.invoice_code}</p>
+                  <p className="text-xs text-gray-500">{format(new Date(inv.issued_at), "MMM d, yyyy")}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">PKR {Number(inv.total).toLocaleString()}</p>
+                    <StatusBadge status={inv.status} />
+                  </div>
+                  {(inv.status === "unpaid" || inv.status === "partially_paid") && (
+                    <ConfirmPaymentButton invoiceId={inv.id} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-500">No invoices yet.</p>
         )}
       </div>
 
@@ -124,51 +177,27 @@ export default async function PatientDetailPage({
         )}
       </div>
 
-      {/* Invoices & Payments */}
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-gray-900">Invoices</h2>
-          {invoices && invoices.length > 0 ? (
-            <div className="mt-4 space-y-3">
-              {invoices.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                  <div>
-                    <p className="text-sm font-mono">{inv.invoice_code}</p>
-                    <p className="text-xs text-gray-500">{format(new Date(inv.issued_at), "MMM d, yyyy")}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">PKR {Number(inv.total).toLocaleString()}</p>
-                    <StatusBadge status={inv.status} />
-                  </div>
+      {/* Payments */}
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+        <h2 className="text-lg font-semibold text-gray-900">Payments</h2>
+        {payments && payments.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            {payments.map((pay) => (
+              <div key={pay.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
+                <div>
+                  <p className="text-sm font-mono">{pay.payment_code}</p>
+                  <p className="text-xs text-gray-500">{pay.payment_method}</p>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-gray-500">No invoices.</p>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-gray-900">Payments</h2>
-          {payments && payments.length > 0 ? (
-            <div className="mt-4 space-y-3">
-              {payments.map((pay) => (
-                <div key={pay.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                  <div>
-                    <p className="text-sm font-mono">{pay.payment_code}</p>
-                    <p className="text-xs text-gray-500">{pay.payment_method}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">PKR {Number(pay.amount).toLocaleString()}</p>
-                    <StatusBadge status={pay.payment_status} />
-                  </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold">PKR {Number(pay.amount).toLocaleString()}</p>
+                  <StatusBadge status={pay.payment_status} />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-gray-500">No payments.</p>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-500">No payments.</p>
+        )}
       </div>
     </div>
   );

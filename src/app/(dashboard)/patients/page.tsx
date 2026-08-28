@@ -12,6 +12,15 @@ export default async function PatientsPage({
   const params = await searchParams;
   const supabase = await createClient();
 
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: clinicUser } = await supabase
+    .from("clinic_users")
+    .select("role")
+    .eq("auth_user_id", user!.id)
+    .single();
+
+  const isAdmin = clinicUser?.role === "admin";
+
   let query = supabase
     .from("patients")
     .select("*")
@@ -25,6 +34,9 @@ export default async function PatientsPage({
     query = query.or(
       `first_name.ilike.%${params.q}%,last_name.ilike.%${params.q}%,phone.ilike.%${params.q}%,patient_code.ilike.%${params.q}%`
     );
+  } else if (!isAdmin) {
+    const today = new Date().toISOString().split("T")[0];
+    query = query.gte("created_at", today);
   }
 
   const { data: patients } = await query.limit(50);
@@ -35,13 +47,19 @@ export default async function PatientsPage({
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Patients</h1>
           <p className="mt-0.5 text-xs md:text-sm text-gray-500">
-            Manage patient records
+            {isAdmin ? "Manage patient records" : "Today's patients — search to find others"}
           </p>
         </div>
         <NewPatientButton />
       </div>
 
       <PatientSearch currentQuery={params.q} currentStatus={params.status} />
+
+      {!isAdmin && !params.q && (
+        <div className="mt-4 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          Showing today&apos;s patients. Use the search bar to find a specific patient by name, phone, or code.
+        </div>
+      )}
 
       {/* Mobile card view */}
       <div className="mt-6 space-y-3 md:hidden">

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import Link from "next/link";
 import { PrintButton } from "@/components/invoices/print-button";
+import { ConfirmPaymentButton } from "@/components/invoices/confirm-payment-button";
 
 export default async function InvoiceDetailPage({
   params,
@@ -37,8 +38,20 @@ export default async function InvoiceDetailPage({
       </Link>
 
       <div className="mt-4 flex items-start justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">{invoice.invoice_code}</h1>
-        <PrintButton />
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{invoice.invoice_code}</h1>
+          {invoice.payment_confirmed_at && (
+            <p className="mt-1 text-xs text-green-700">
+              Payment confirmed on {format(new Date(invoice.payment_confirmed_at), "MMM d, yyyy 'at' h:mm a")}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {(invoice.status === "unpaid" || invoice.status === "partially_paid") && (
+            <ConfirmPaymentButton invoiceId={invoice.id} />
+          )}
+          <PrintButton />
+        </div>
       </div>
 
       {/* Print-friendly invoice */}
