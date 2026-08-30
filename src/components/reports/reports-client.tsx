@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateReport, downloadReportExcel, type DateRange } from "@/app/(dashboard)/reports/actions";
+
+import { generateReport, type DateRange } from "@/app/(dashboard)/reports/actions";
 
 const DATE_RANGES: { value: DateRange; label: string }[] = [
   { value: "today", label: "Today" },
@@ -35,7 +36,7 @@ export function ReportsClient() {
   const [range, setRange] = useState<DateRange>("today");
   const [report, setReport] = useState<ReportData | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isDownloading, startDownload] = useTransition();
+  const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState("");
 
   function handleGenerate() {
@@ -52,25 +53,9 @@ export function ReportsClient() {
 
   function handleDownload() {
     setError("");
-    startDownload(async () => {
-      const result = await downloadReportExcel(range);
-      if ("error" in result) {
-        setError(result.error!);
-      } else {
-        const byteChars = atob(result.base64!);
-        const byteArray = new Uint8Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
-        const blob = new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = result.filename!;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-    });
+    setIsDownloading(true);
+    window.open(`/api/reports/download?range=${range}`, "_blank");
+    setTimeout(() => setIsDownloading(false), 2000);
   }
 
   return (
