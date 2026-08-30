@@ -40,6 +40,9 @@ export function MobileNav({ user, onLogout }: MobileNavProps) {
               >
                 <tab.icon className={clsx("h-[22px] w-[22px]", isActive ? "text-white" : "text-gray-400")} />
               </div>
+              <span className={clsx("text-[10px] font-semibold", isActive ? "text-[#2563EB]" : "text-gray-400")}>
+                {tab.name}
+              </span>
             </Link>
           );
         })}
