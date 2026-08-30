@@ -72,7 +72,6 @@ interface ReportSummary {
   totalInvoiced: number;
   totalRevenue: number;
   outstandingAmount: number;
-  totalPayments: number;
 }
 
 interface ReportData {
@@ -80,7 +79,6 @@ interface ReportData {
   patients: any[];
   appointments: any[];
   invoices: any[];
-  payments: any[];
 }
 
 export default function ReportsScreen() {
@@ -105,12 +103,8 @@ export default function ReportsScreen() {
     if (dateFrom) invoicesQuery = invoicesQuery.gte("issued_at", dateFrom);
     const { data: invoices } = await invoicesQuery;
 
-    let paymentsQuery = supabase.from("payments").select("*, patients(first_name, last_name, phone, patient_code)").order("paid_at", { ascending: false });
-    if (dateFrom) paymentsQuery = paymentsQuery.gte("paid_at", dateFrom);
-    const { data: payments } = await paymentsQuery;
-
-    const totalRevenue = (payments ?? []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
     const totalInvoiced = (invoices ?? []).reduce((sum: number, i: any) => sum + (i.total || 0), 0);
+    const totalRevenue = (invoices ?? []).filter((i: any) => i.status === "paid").reduce((sum: number, i: any) => sum + (i.total || 0), 0);
 
     const summary: ReportSummary = {
       totalPatients: (patients ?? []).length,
@@ -123,10 +117,9 @@ export default function ReportsScreen() {
       totalInvoiced,
       totalRevenue,
       outstandingAmount: totalInvoiced - totalRevenue,
-      totalPayments: (payments ?? []).length,
     };
 
-    setReport({ summary, patients: patients ?? [], appointments: appointments ?? [], invoices: invoices ?? [], payments: payments ?? [] });
+    setReport({ summary, patients: patients ?? [], appointments: appointments ?? [], invoices: invoices ?? [] });
     setLoading(false);
   }, [range]);
 
@@ -163,28 +156,27 @@ export default function ReportsScreen() {
         ["Outstanding Amount", report.summary.outstandingAmount],
         ["Total Invoices", report.summary.totalInvoices],
         ["Unpaid Invoices", report.summary.unpaidInvoices],
-        ["Total Payments", report.summary.totalPayments],
       ];
       const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
       wsSummary["!cols"] = [{ wch: 28 }, { wch: 24 }];
       XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
       // --- Patients Sheet (with balances/dues) ---
-      const patientInvoiceMap: Record<string, number> = {};
-      const patientPaymentMap: Record<string, number> = {};
+      const patientInvoicedMap: Record<string, number> = {};
+      const patientPaidMap: Record<string, number> = {};
       for (const inv of report.invoices) {
-        patientInvoiceMap[inv.patient_id] = (patientInvoiceMap[inv.patient_id] || 0) + (inv.total || 0);
-      }
-      for (const pay of report.payments) {
-        patientPaymentMap[pay.patient_id] = (patientPaymentMap[pay.patient_id] || 0) + (pay.amount || 0);
+        patientInvoicedMap[inv.patient_id] = (patientInvoicedMap[inv.patient_id] || 0) + (inv.total || 0);
+        if (inv.status === "paid") {
+          patientPaidMap[inv.patient_id] = (patientPaidMap[inv.patient_id] || 0) + (inv.total || 0);
+        }
       }
 
       const patientRows = [
         ["Code", "Name", "Phone", "Gender", "Status", "Credit Balance (PKR)", "Total Invoiced (PKR)", "Total Paid (PKR)", "Dues (PKR)", "Registered"],
       ];
       for (const p of report.patients) {
-        const invoiced = patientInvoiceMap[p.id] || 0;
-        const paid = patientPaymentMap[p.id] || 0;
+        const invoiced = patientInvoicedMap[p.id] || 0;
+        const paid = patientPaidMap[p.id] || 0;
         const dues = invoiced - paid;
         patientRows.push([
           p.patient_code,
@@ -226,8 +218,16 @@ export default function ReportsScreen() {
       XLSX.utils.book_append_sheet(wb, wsAppointments, "Appointments");
 
       // --- Invoices Sheet ---
+      const collectedByLabel = (value: string | null) => {
+        if (!value) return "";
+        if (value === "reception") return "At Reception";
+        if (value === "doctor") return "By Doctor";
+        if (value === "credit") return "Credit Settlement";
+        return value;
+      };
+
       const invoiceRows = [
-        ["Code", "Patient", "Phone", "Subtotal (PKR)", "Discount (PKR)", "Total (PKR)", "Status", "Issued Date"],
+        ["Code", "Patient", "Phone", "Subtotal (PKR)", "Discount (PKR)", "Total (PKR)", "Status", "Collected By", "Payment Date", "Issued Date"],
       ];
       for (const i of report.invoices) {
         const pat = i.patients;
@@ -238,33 +238,15 @@ export default function ReportsScreen() {
           i.subtotal,
           i.discount,
           i.total,
-          i.status,
+          i.status === "paid" ? "Paid" : i.status === "partially_paid" ? "Partially Paid" : i.status === "cancelled" ? "Cancelled" : "Unpaid",
+          i.status === "paid" ? collectedByLabel(i.collected_by) : "",
+          i.payment_confirmed_at?.split("T")[0] || "",
           i.issued_at?.split("T")[0] || "",
         ]);
       }
       const wsInvoices = XLSX.utils.aoa_to_sheet(invoiceRows);
-      wsInvoices["!cols"] = [{ wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+      wsInvoices["!cols"] = [{ wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 14 }];
       XLSX.utils.book_append_sheet(wb, wsInvoices, "Invoices");
-
-      // --- Payments Sheet ---
-      const paymentRows = [
-        ["Code", "Patient", "Phone", "Amount (PKR)", "Method", "Status", "Paid At"],
-      ];
-      for (const p of report.payments) {
-        const pat = p.patients;
-        paymentRows.push([
-          p.payment_code || "",
-          pat ? `${pat.first_name} ${pat.last_name}` : "",
-          pat?.phone || "",
-          p.amount,
-          p.payment_method,
-          p.payment_status,
-          p.paid_at?.split("T")[0] || "",
-        ]);
-      }
-      const wsPayments = XLSX.utils.aoa_to_sheet(paymentRows);
-      wsPayments["!cols"] = [{ wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
-      XLSX.utils.book_append_sheet(wb, wsPayments, "Payments");
 
       // Write to file and share
       const wbout = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
@@ -336,7 +318,6 @@ export default function ReportsScreen() {
             <StatCard label="Checked In" value={report.summary.checkedIn} color="#D97706" />
             <StatCard label="Invoices" value={report.summary.totalInvoices} />
             <StatCard label="Unpaid" value={report.summary.unpaidInvoices} color="#DC2626" />
-            <StatCard label="Payments" value={report.summary.totalPayments} />
           </View>
 
           <View style={styles.revenueSection}>
