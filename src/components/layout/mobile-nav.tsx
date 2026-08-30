@@ -23,20 +23,23 @@ export function MobileNav({ user, onLogout }: MobileNavProps) {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)' }}>
-      <nav className="mx-3 flex items-center justify-around rounded-2xl border border-black/[0.06] bg-white/75 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur-xl">
+      <nav className="mx-3 flex items-center justify-around rounded-full border border-black/[0.06] bg-white/75 py-1.5 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur-xl">
         {tabs.map((tab) => {
           const isActive = pathname.startsWith(tab.href);
           return (
             <Link
               key={tab.name}
               href={tab.href}
-              className={clsx(
-                "flex flex-col items-center gap-0.5 px-3 py-1 text-[10px] font-semibold transition-colors",
-                isActive ? "text-gray-900" : "text-gray-400"
-              )}
+              className="flex flex-col items-center justify-center px-3 py-1"
             >
-              <tab.icon className={clsx("h-6 w-6", isActive ? "text-gray-900" : "text-gray-400")} />
-              {tab.name}
+              <div
+                className={clsx(
+                  "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                  isActive ? "bg-[#2563EB]" : "bg-transparent"
+                )}
+              >
+                <tab.icon className={clsx("h-[22px] w-[22px]", isActive ? "text-white" : "text-gray-400")} />
+              </div>
             </Link>
           );
         })}
