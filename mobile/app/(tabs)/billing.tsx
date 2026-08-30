@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { Card } from "@/components/Card";
 import { StatusBadge } from "@/components/StatusBadge";
+import { getCached, setCache, isFresh } from "@/lib/data-cache";
 import type { Invoice, Payment } from "@/types/database";
 
 type Tab = "invoices" | "payments";
@@ -27,10 +28,12 @@ export default function BillingScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const isAdmin = user?.role === "admin";
+  const cachedInv = getCached<Invoice[]>("billing-invoices");
+  const cachedPay = getCached<Payment[]>("billing-payments");
   const [tab, setTab] = useState<Tab>("invoices");
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState<Invoice[]>(cachedInv ?? []);
+  const [payments, setPayments] = useState<Payment[]>(cachedPay ?? []);
+  const [loading, setLoading] = useState(!cachedInv);
   const [refreshing, setRefreshing] = useState(false);
   const [showNewInvoice, setShowNewInvoice] = useState(false);
 
@@ -61,12 +64,15 @@ export default function BillingScreen() {
       return (priority[a.status] ?? 4) - (priority[b.status] ?? 4);
     });
 
+    setCache("billing-invoices", sortedInv);
+    setCache("billing-payments", pay ?? []);
     setInvoices(sortedInv as Invoice[]);
     setPayments((pay as Payment[]) ?? []);
     setLoading(false);
   }, [isAdmin]);
 
   useEffect(() => {
+    if (isFresh("billing-invoices")) return;
     fetchData();
   }, [fetchData]);
 

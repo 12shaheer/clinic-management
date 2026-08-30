@@ -29,12 +29,13 @@ export default async function AppointmentsPage({
     query = query.eq("physiotherapist_id", params.physio);
   }
 
-  const { data: appointments } = await query.limit(50);
-
-  const { data: physiotherapists } = await supabase
-    .from("physiotherapists")
-    .select("id, first_name, last_name")
-    .eq("status", "active");
+  const [{ data: appointments }, { data: physiotherapists }] = await Promise.all([
+    query.limit(50),
+    supabase
+      .from("physiotherapists")
+      .select("id, first_name, last_name")
+      .eq("status", "active"),
+  ]);
 
   // Sort: active statuses first, completed/cancelled last
   const sorted = appointments?.sort((a, b) => {

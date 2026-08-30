@@ -1,22 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth";
 import { ReportsClient } from "@/components/reports/reports-client";
 
 export default async function ReportsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const auth = await getAuthUser();
 
-  if (!user) redirect("/login");
-
-  const { data: clinicUser } = await supabase
-    .from("clinic_users")
-    .select("role")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (!clinicUser || clinicUser.role !== "admin") {
-    redirect("/dashboard");
-  }
+  if (!auth) redirect("/login");
+  if (!auth.isAdmin) redirect("/dashboard");
 
   return (
     <div>

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Clinic",
     "slug": "clinic",
-    "owner": "sherryyy1231231231231s-team",
+    "owner": "sheryyyy9880980980s-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -35,7 +35,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "c7140fb6-93ac-4bd9-bb26-35afa27f0216"
+        "projectId": "4205a4bf-832f-44de-ae7b-e87f37d29d64"
       }
     }
   }

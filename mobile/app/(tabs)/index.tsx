@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { Card } from "@/components/Card";
 import { StatusBadge } from "@/components/StatusBadge";
+import { getCached, setCache, isFresh } from "@/lib/data-cache";
 
 interface DashboardData {
   todayAppointments: number;
@@ -30,8 +31,9 @@ interface DashboardData {
 
 export default function DashboardScreen() {
   const { user } = useAuth();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = getCached<DashboardData>("dashboard");
+  const [data, setData] = useState<DashboardData | null>(cached);
+  const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
@@ -73,17 +75,20 @@ export default function DashboardScreen() {
 
     const todayRevenue = todayPayments?.reduce((sum, p) => sum + Number(p.amount), 0) ?? 0;
 
-    setData({
+    const newData: DashboardData = {
       todayAppointments: todayAppointments ?? 0,
       completedAppointments: completedAppointments ?? 0,
       checkedInPatients: checkedInPatients ?? 0,
       todayRevenue,
       recentAppointments: (recentAppointments as DashboardData["recentAppointments"]) ?? [],
-    });
+    };
+    setCache("dashboard", newData);
+    setData(newData);
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    if (isFresh("dashboard")) return;
     fetchDashboard();
   }, [fetchDashboard]);
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth";
 import Link from "next/link";
 import { format } from "date-fns";
 import { PatientSearch } from "@/components/patients/patient-search";
@@ -9,17 +10,13 @@ export default async function PatientsPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string }>;
 }) {
-  const params = await searchParams;
-  const supabase = await createClient();
+  const [params, auth, supabase] = await Promise.all([
+    searchParams,
+    getAuthUser(),
+    createClient(),
+  ]);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: clinicUser } = await supabase
-    .from("clinic_users")
-    .select("role")
-    .eq("auth_user_id", user!.id)
-    .single();
-
-  const isAdmin = clinicUser?.role === "admin";
+  const isAdmin = auth?.isAdmin ?? false;
 
   let query = supabase
     .from("patients")

@@ -83,8 +83,8 @@ export default function PatientDetailScreen() {
   const unpaidInvoices = invoices.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid");
   const paidInvoices = invoices.filter(inv => inv.status === "paid");
   const totalUnpaid = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-  const totalPaid = paidInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
   const creditBalance = Number(patient?.credit_balance ?? 0);
+  const currentBalance = totalUnpaid - creditBalance;
 
   function handleConfirmPayment(invoiceId: string) {
     Alert.alert(
@@ -278,21 +278,30 @@ export default function PatientDetailScreen() {
           <StatusBadge status={patient.status} />
         </View>
 
-        {/* Credit Summary */}
-        <View style={styles.creditGrid}>
-          <View style={[styles.creditCard, { backgroundColor: "#F0FDF4" }]}>
-            <Text style={[styles.creditAmount, { color: "#15803D" }]}>PKR {totalPaid.toLocaleString()}</Text>
-            <Text style={styles.creditLabel}>Paid</Text>
-          </View>
-          <View style={[styles.creditCard, { backgroundColor: totalUnpaid > 0 ? "#FEF2F2" : "#F9FAFB" }]}>
-            <Text style={[styles.creditAmount, { color: totalUnpaid > 0 ? "#DC2626" : "#111827" }]}>PKR {totalUnpaid.toLocaleString()}</Text>
-            <Text style={styles.creditLabel}>Unpaid</Text>
-          </View>
-          <View style={[styles.creditCard, { backgroundColor: creditBalance > 0 ? "#EFF6FF" : "#F9FAFB" }]}>
-            <Text style={[styles.creditAmount, { color: creditBalance > 0 ? "#1D4ED8" : "#111827" }]}>PKR {creditBalance.toLocaleString()}</Text>
-            <Text style={styles.creditLabel}>Credit</Text>
-          </View>
+        {/* Current Balance */}
+        <View style={[styles.balanceCard, {
+          backgroundColor: currentBalance > 0 ? "#FEF2F2" : currentBalance < 0 ? "#EFF6FF" : "#F0FDF4",
+          borderColor: currentBalance > 0 ? "#FECACA" : currentBalance < 0 ? "#BFDBFE" : "#BBF7D0",
+        }]}>
+          <Text style={[styles.balanceLabel, {
+            color: currentBalance > 0 ? "#DC2626" : currentBalance < 0 ? "#1D4ED8" : "#15803D",
+          }]}>Current Balance</Text>
+          <Text style={[styles.balanceAmount, {
+            color: currentBalance > 0 ? "#991B1B" : currentBalance < 0 ? "#1E40AF" : "#166534",
+          }]}>
+            {currentBalance > 0
+              ? `PKR ${currentBalance.toLocaleString()} due`
+              : currentBalance < 0
+              ? `PKR ${Math.abs(currentBalance).toLocaleString()} credit`
+              : "Clear"}
+          </Text>
         </View>
+        {creditBalance > 0 && (
+          <View style={styles.advanceCreditCard}>
+            <Text style={styles.advanceCreditLabel}>Advance Credit</Text>
+            <Text style={styles.advanceCreditAmount}>PKR {creditBalance.toLocaleString()}</Text>
+          </View>
+        )}
 
         {/* Unpaid Invoices */}
         {unpaidInvoices.length > 0 && (
@@ -493,10 +502,12 @@ const styles = StyleSheet.create({
   bigAvatarText: { fontSize: 22, fontWeight: "700", color: "#2563EB" },
   name: { fontSize: 20, fontWeight: "700", color: "#111827" },
   code: { fontSize: 14, color: "#6B7280", marginTop: 2, marginBottom: 6, fontFamily: "monospace" },
-  creditGrid: { flexDirection: "row", gap: 8, marginBottom: 16 },
-  creditCard: { flex: 1, borderRadius: 10, padding: 12 },
-  creditAmount: { fontSize: 15, fontWeight: "700" },
-  creditLabel: { fontSize: 11, color: "#6B7280", marginTop: 2 },
+  balanceCard: { borderRadius: 12, padding: 16, marginBottom: 10, borderWidth: 1 },
+  balanceLabel: { fontSize: 12, fontWeight: "600" },
+  balanceAmount: { fontSize: 22, fontWeight: "700", marginTop: 4 },
+  advanceCreditCard: { backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", borderRadius: 12, padding: 14, marginBottom: 16 },
+  advanceCreditLabel: { fontSize: 12, fontWeight: "600", color: "#1D4ED8" },
+  advanceCreditAmount: { fontSize: 17, fontWeight: "700", color: "#1E40AF", marginTop: 2 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: "600", color: "#111827", marginBottom: 12 },
   sumPayButton: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#EFF6FF", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },

@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getAuthUser } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/app-layout";
 import type { ClinicUser } from "@/types/database";
 
@@ -8,34 +8,22 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const auth = await getAuthUser();
 
-  if (authError || !user) {
+  if (!auth) {
     redirect("/login");
   }
 
-  const { data: clinicUser, error: dbError } = await supabase
-    .from("clinic_users")
-    .select("*")
-    .eq("auth_user_id", user.id)
-    .single();
+  const user: ClinicUser = auth.clinicUser ?? {
+    id: auth.authUser.id,
+    auth_user_id: auth.authUser.id,
+    name: auth.authUser.email?.split("@")[0] ?? "User",
+    email: auth.authUser.email ?? "",
+    role: "admin",
+    status: "active",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
-  if (dbError || !clinicUser) {
-    // If user exists in auth but not in clinic_users, show a fallback
-    // instead of redirect loop
-    const fallbackUser: ClinicUser = {
-      id: user.id,
-      auth_user_id: user.id,
-      name: user.email?.split("@")[0] ?? "User",
-      email: user.email ?? "",
-      role: "admin",
-      status: "active",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    return <AppLayout user={fallbackUser}>{children}</AppLayout>;
-  }
-
-  return <AppLayout user={clinicUser as ClinicUser}>{children}</AppLayout>;
+  return <AppLayout user={user}>{children}</AppLayout>;
 }

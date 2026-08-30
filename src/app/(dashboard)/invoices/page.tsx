@@ -1,20 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth";
 import { format } from "date-fns";
 import Link from "next/link";
 import { NewInvoiceButton } from "@/components/invoices/new-invoice-button";
 import { ConfirmPaymentButton } from "@/components/invoices/confirm-payment-button";
 
 export default async function InvoicesPage() {
-  const supabase = await createClient();
+  const [auth, supabase] = await Promise.all([
+    getAuthUser(),
+    createClient(),
+  ]);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: clinicUser } = await supabase
-    .from("clinic_users")
-    .select("role")
-    .eq("auth_user_id", user!.id)
-    .single();
-
-  const isAdmin = clinicUser?.role === "admin";
+  const isAdmin = auth?.isAdmin ?? false;
 
   let query = supabase
     .from("invoices")

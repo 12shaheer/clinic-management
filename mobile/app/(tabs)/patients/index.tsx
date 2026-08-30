@@ -14,16 +14,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { StatusBadge } from "@/components/StatusBadge";
+import { getCached, setCache, isFresh } from "@/lib/data-cache";
 import type { Patient } from "@/types/database";
 
 export default function PatientsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [filtered, setFiltered] = useState<Patient[]>([]);
+  const cacheKey = isAdmin ? "patients-admin" : "patients";
+  const cached = getCached<Patient[]>(cacheKey);
+  const [patients, setPatients] = useState<Patient[]>(cached ?? []);
+  const [filtered, setFiltered] = useState<Patient[]>(cached ?? []);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchPatients = useCallback(async () => {
@@ -40,14 +43,16 @@ export default function PatientsScreen() {
     const { data } = await query;
 
     const list = (data as Patient[]) ?? [];
+    setCache(cacheKey, list);
     setPatients(list);
     setFiltered(list);
     setLoading(false);
-  }, [isAdmin]);
+  }, [isAdmin, cacheKey]);
 
   useEffect(() => {
+    if (isFresh(cacheKey)) return;
     fetchPatients();
-  }, [fetchPatients]);
+  }, [fetchPatients, cacheKey]);
 
   useEffect(() => {
     if (!search.trim()) {

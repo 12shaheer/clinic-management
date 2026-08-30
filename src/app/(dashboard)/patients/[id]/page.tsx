@@ -44,12 +44,11 @@ export default async function PatientDetailPage({
         .limit(20),
     ]);
 
-  const totalBilled = invoices?.reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
-  const totalPaid = invoices?.filter(inv => inv.status === "paid").reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
   const totalUnpaid = invoices?.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid").reduce((sum, inv) => sum + Number(inv.total), 0) ?? 0;
   const unpaidInvoices = invoices?.filter(inv => inv.status === "unpaid" || inv.status === "partially_paid") ?? [];
   const paidInvoices = invoices?.filter(inv => inv.status === "paid" || inv.status === "cancelled") ?? [];
   const creditBalance = Number(patient.credit_balance ?? 0);
+  const currentBalance = totalUnpaid - creditBalance;
 
   return (
     <div>
@@ -77,24 +76,36 @@ export default async function PatientDetailPage({
         </div>
       </div>
 
-      {/* Credit Summary */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-xs font-medium text-gray-500">Total Billed</p>
-          <p className="mt-1 text-lg font-bold text-gray-900">PKR {totalBilled.toLocaleString()}</p>
+      {/* Current Balance */}
+      <div className="mt-6 flex flex-col sm:flex-row gap-3">
+        <div className={`flex-1 rounded-xl border p-5 ${
+          currentBalance > 0 ? "border-red-200 bg-red-50" :
+          currentBalance < 0 ? "border-blue-200 bg-blue-50" :
+          "border-green-200 bg-green-50"
+        }`}>
+          <p className={`text-xs font-medium ${
+            currentBalance > 0 ? "text-red-700" :
+            currentBalance < 0 ? "text-blue-700" :
+            "text-green-700"
+          }`}>Current Balance</p>
+          <p className={`mt-1 text-2xl font-bold ${
+            currentBalance > 0 ? "text-red-800" :
+            currentBalance < 0 ? "text-blue-800" :
+            "text-green-800"
+          }`}>
+            {currentBalance > 0
+              ? `PKR ${currentBalance.toLocaleString()} due`
+              : currentBalance < 0
+              ? `PKR ${Math.abs(currentBalance).toLocaleString()} credit`
+              : "Clear"}
+          </p>
         </div>
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="text-xs font-medium text-green-700">Paid</p>
-          <p className="mt-1 text-lg font-bold text-green-800">PKR {totalPaid.toLocaleString()}</p>
-        </div>
-        <div className={`rounded-xl border p-4 ${totalUnpaid > 0 ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"}`}>
-          <p className={`text-xs font-medium ${totalUnpaid > 0 ? "text-red-700" : "text-gray-500"}`}>Unpaid</p>
-          <p className={`mt-1 text-lg font-bold ${totalUnpaid > 0 ? "text-red-800" : "text-gray-900"}`}>PKR {totalUnpaid.toLocaleString()}</p>
-        </div>
-        <div className={`rounded-xl border p-4 ${creditBalance > 0 ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-white"}`}>
-          <p className={`text-xs font-medium ${creditBalance > 0 ? "text-blue-700" : "text-gray-500"}`}>Credit Balance</p>
-          <p className={`mt-1 text-lg font-bold ${creditBalance > 0 ? "text-blue-800" : "text-gray-900"}`}>PKR {creditBalance.toLocaleString()}</p>
-        </div>
+        {creditBalance > 0 && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 sm:w-48">
+            <p className="text-xs font-medium text-blue-700">Advance Credit</p>
+            <p className="mt-1 text-lg font-bold text-blue-800">PKR {creditBalance.toLocaleString()}</p>
+          </div>
+        )}
       </div>
 
       {/* Unpaid Invoices + Payment Actions */}

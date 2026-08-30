@@ -16,11 +16,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { StatusBadge } from "@/components/StatusBadge";
+import { getCached, setCache, isFresh } from "@/lib/data-cache";
 import type { Appointment } from "@/types/database";
 
 export default function AppointmentsScreen() {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = getCached<Appointment[]>("appointments");
+  const [appointments, setAppointments] = useState<Appointment[]>(cached ?? []);
+  const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
 
@@ -32,11 +34,14 @@ export default function AppointmentsScreen() {
       .order("start_time", { ascending: true })
       .limit(50);
 
-    setAppointments((data as Appointment[]) ?? []);
+    const list = (data as Appointment[]) ?? [];
+    setCache("appointments", list);
+    setAppointments(list);
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    if (isFresh("appointments")) return;
     fetchAppointments();
   }, [fetchAppointments]);
 
