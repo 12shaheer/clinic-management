@@ -64,15 +64,20 @@ const tabStyles = StyleSheet.create({
     width: "100%",
     borderRadius: 40,
     overflow: "hidden",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.06)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 12,
   },
   inner: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
     paddingVertical: 10,
-    backgroundColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(255,255,255,0.75)",
   },
   tab: {
     alignItems: "center",
@@ -88,6 +93,8 @@ const tabStyles = StyleSheet.create({
   },
   iconWrapActive: {
     backgroundColor: "#2563EB",
+    borderRadius: 21,
+    overflow: "hidden",
   },
 });
 

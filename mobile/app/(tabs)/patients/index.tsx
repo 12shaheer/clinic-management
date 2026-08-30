@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -19,6 +20,7 @@ import type { Patient } from "@/types/database";
 
 export default function PatientsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const cacheKey = isAdmin ? "patients-admin" : "patients";
@@ -100,7 +102,7 @@ export default function PatientsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Patients</Text>
         <TouchableOpacity
           style={styles.addButton}
@@ -183,7 +185,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: 12,
     paddingBottom: 12,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,

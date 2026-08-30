@@ -7,9 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Share,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 
 type DateRange = "today" | "yesterday" | "last_7_days" | "last_30_days" | "last_6_months" | "last_year" | "all_time";
@@ -73,11 +75,19 @@ interface ReportSummary {
   totalPayments: number;
 }
 
+interface ReportData {
+  summary: ReportSummary;
+  patients: any[];
+  appointments: any[];
+  invoices: any[];
+  payments: any[];
+}
+
 export default function ReportsScreen() {
   const [range, setRange] = useState<DateRange>("today");
-  const [summary, setSummary] = useState<ReportSummary | null>(null);
+  const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [csvData, setCsvData] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const generateReport = useCallback(async () => {
     setLoading(true);
@@ -102,7 +112,7 @@ export default function ReportsScreen() {
     const totalRevenue = (payments ?? []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
     const totalInvoiced = (invoices ?? []).reduce((sum: number, i: any) => sum + (i.total || 0), 0);
 
-    const report: ReportSummary = {
+    const summary: ReportSummary = {
       totalPatients: (patients ?? []).length,
       totalAppointments: (appointments ?? []).length,
       completedAppointments: (appointments ?? []).filter((a: any) => a.status === "completed").length,
@@ -116,69 +126,162 @@ export default function ReportsScreen() {
       totalPayments: (payments ?? []).length,
     };
 
-    setSummary(report);
-
-    // Build CSV
-    const lines: string[] = [];
-    const rangeLabel = DATE_RANGES.find(r => r.value === range)?.label ?? range;
-    lines.push(`CLINIC REPORT - ${rangeLabel}`);
-    lines.push(`Generated,${new Date().toLocaleString()}`);
-    lines.push("");
-    lines.push("SUMMARY");
-    lines.push(`Total Patients,${report.totalPatients}`);
-    lines.push(`Total Appointments,${report.totalAppointments}`);
-    lines.push(`Completed,${report.completedAppointments}`);
-    lines.push(`Cancelled,${report.cancelledAppointments}`);
-    lines.push(`Checked In,${report.checkedIn}`);
-    lines.push(`Total Invoices,${report.totalInvoices}`);
-    lines.push(`Unpaid Invoices,${report.unpaidInvoices}`);
-    lines.push(`Total Invoiced (PKR),${report.totalInvoiced}`);
-    lines.push(`Total Revenue (PKR),${report.totalRevenue}`);
-    lines.push(`Outstanding (PKR),${report.outstandingAmount}`);
-    lines.push(`Total Payments,${report.totalPayments}`);
-    lines.push("");
-    lines.push("PATIENTS");
-    lines.push("Code,Name,Phone,Gender,Status,Registered");
-    for (const p of (patients ?? [])) {
-      lines.push(`${p.patient_code},${p.first_name} ${p.last_name},${p.phone},${p.gender || ""},${p.status},${p.created_at}`);
-    }
-    lines.push("");
-    lines.push("APPOINTMENTS");
-    lines.push("Code,Patient,Physiotherapist,Date,Time,Type,Status");
-    for (const a of (appointments ?? [])) {
-      const pat = (a as any).patients;
-      const phy = (a as any).physiotherapists;
-      lines.push(`${a.appointment_code},${pat?.first_name} ${pat?.last_name},Dr. ${phy?.first_name} ${phy?.last_name},${a.appointment_date},${a.start_time},${a.appointment_type || ""},${a.status}`);
-    }
-    lines.push("");
-    lines.push("INVOICES");
-    lines.push("Code,Patient,Subtotal,Discount,Total,Status,Collected By");
-    for (const i of (invoices ?? [])) {
-      const pat = (i as any).patients;
-      lines.push(`${i.invoice_code},${pat?.first_name} ${pat?.last_name},${i.subtotal},${i.discount},${i.total},${i.status},${i.collected_by || ""}`);
-    }
-    lines.push("");
-    lines.push("PAYMENTS");
-    lines.push("Code,Patient,Amount,Method,Status,Paid At");
-    for (const p of (payments ?? [])) {
-      const pat = (p as any).patients;
-      lines.push(`${p.payment_code || ""},${pat?.first_name} ${pat?.last_name},${p.amount},${p.payment_method},${p.payment_status},${p.paid_at || ""}`);
-    }
-
-    setCsvData(lines.join("\n"));
+    setReport({ summary, patients: patients ?? [], appointments: appointments ?? [], invoices: invoices ?? [], payments: payments ?? [] });
     setLoading(false);
   }, [range]);
 
   async function handleShare() {
-    if (!csvData) {
+    if (!report) {
       Alert.alert("Generate First", "Please generate a report first.");
       return;
     }
-    const rangeLabel = DATE_RANGES.find(r => r.value === range)?.label ?? range;
-    await Share.share({
-      message: csvData,
-      title: `Clinic Report - ${rangeLabel}`,
-    });
+
+    setSharing(true);
+
+    try {
+      const rangeLabel = DATE_RANGES.find(r => r.value === range)?.label ?? range;
+      const wb = XLSX.utils.book_new();
+
+      // --- Summary Sheet ---
+      const summaryRows = [
+        ["CLINIC REPORT"],
+        ["Date Range", rangeLabel],
+        ["Generated", new Date().toLocaleString()],
+        [],
+        ["OVERVIEW"],
+        ["Metric", "Value"],
+        ["Total Patients", report.summary.totalPatients],
+        ["Total Appointments", report.summary.totalAppointments],
+        ["Completed Appointments", report.summary.completedAppointments],
+        ["Cancelled Appointments", report.summary.cancelledAppointments],
+        ["Checked In", report.summary.checkedIn],
+        [],
+        ["FINANCIAL SUMMARY"],
+        ["Metric", "Amount (PKR)"],
+        ["Total Invoiced", report.summary.totalInvoiced],
+        ["Total Revenue Collected", report.summary.totalRevenue],
+        ["Outstanding Amount", report.summary.outstandingAmount],
+        ["Total Invoices", report.summary.totalInvoices],
+        ["Unpaid Invoices", report.summary.unpaidInvoices],
+        ["Total Payments", report.summary.totalPayments],
+      ];
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary["!cols"] = [{ wch: 28 }, { wch: 24 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+
+      // --- Patients Sheet (with balances/dues) ---
+      const patientInvoiceMap: Record<string, number> = {};
+      const patientPaymentMap: Record<string, number> = {};
+      for (const inv of report.invoices) {
+        patientInvoiceMap[inv.patient_id] = (patientInvoiceMap[inv.patient_id] || 0) + (inv.total || 0);
+      }
+      for (const pay of report.payments) {
+        patientPaymentMap[pay.patient_id] = (patientPaymentMap[pay.patient_id] || 0) + (pay.amount || 0);
+      }
+
+      const patientRows = [
+        ["Code", "Name", "Phone", "Gender", "Status", "Credit Balance (PKR)", "Total Invoiced (PKR)", "Total Paid (PKR)", "Dues (PKR)", "Registered"],
+      ];
+      for (const p of report.patients) {
+        const invoiced = patientInvoiceMap[p.id] || 0;
+        const paid = patientPaymentMap[p.id] || 0;
+        const dues = invoiced - paid;
+        patientRows.push([
+          p.patient_code,
+          `${p.first_name} ${p.last_name}`,
+          p.phone,
+          p.gender || "",
+          p.status,
+          p.credit_balance || 0,
+          invoiced,
+          paid,
+          dues,
+          p.created_at?.split("T")[0] || "",
+        ]);
+      }
+      const wsPatients = XLSX.utils.aoa_to_sheet(patientRows);
+      wsPatients["!cols"] = [{ wch: 12 }, { wch: 22 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 14 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wsPatients, "Patients");
+
+      // --- Appointments Sheet ---
+      const appointmentRows = [
+        ["Code", "Patient", "Phone", "Physiotherapist", "Date", "Time", "Type", "Status"],
+      ];
+      for (const a of report.appointments) {
+        const pat = a.patients;
+        const phy = a.physiotherapists;
+        appointmentRows.push([
+          a.appointment_code,
+          pat ? `${pat.first_name} ${pat.last_name}` : "",
+          pat?.phone || "",
+          phy ? `Dr. ${phy.first_name} ${phy.last_name}` : "",
+          a.appointment_date,
+          a.start_time,
+          a.appointment_type || "",
+          a.status,
+        ]);
+      }
+      const wsAppointments = XLSX.utils.aoa_to_sheet(appointmentRows);
+      wsAppointments["!cols"] = [{ wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 24 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, wsAppointments, "Appointments");
+
+      // --- Invoices Sheet ---
+      const invoiceRows = [
+        ["Code", "Patient", "Phone", "Subtotal (PKR)", "Discount (PKR)", "Total (PKR)", "Status", "Issued Date"],
+      ];
+      for (const i of report.invoices) {
+        const pat = i.patients;
+        invoiceRows.push([
+          i.invoice_code,
+          pat ? `${pat.first_name} ${pat.last_name}` : "",
+          pat?.phone || "",
+          i.subtotal,
+          i.discount,
+          i.total,
+          i.status,
+          i.issued_at?.split("T")[0] || "",
+        ]);
+      }
+      const wsInvoices = XLSX.utils.aoa_to_sheet(invoiceRows);
+      wsInvoices["!cols"] = [{ wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wsInvoices, "Invoices");
+
+      // --- Payments Sheet ---
+      const paymentRows = [
+        ["Code", "Patient", "Phone", "Amount (PKR)", "Method", "Status", "Paid At"],
+      ];
+      for (const p of report.payments) {
+        const pat = p.patients;
+        paymentRows.push([
+          p.payment_code || "",
+          pat ? `${pat.first_name} ${pat.last_name}` : "",
+          pat?.phone || "",
+          p.amount,
+          p.payment_method,
+          p.payment_status,
+          p.paid_at?.split("T")[0] || "",
+        ]);
+      }
+      const wsPayments = XLSX.utils.aoa_to_sheet(paymentRows);
+      wsPayments["!cols"] = [{ wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wsPayments, "Payments");
+
+      // Write to file and share
+      const wbout = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
+      const fileName = `Clinic_Report_${rangeLabel.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      const file = new File(Paths.cache, fileName);
+      file.write(wbout, { encoding: "base64" });
+
+      await Sharing.shareAsync(file.uri, {
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        dialogTitle: `Clinic Report - ${rangeLabel}`,
+        UTI: "org.openxmlformats.spreadsheetml.sheet",
+      });
+    } catch (error: any) {
+      Alert.alert("Error", "Failed to generate Excel file. Please try again.");
+    } finally {
+      setSharing(false);
+    }
   }
 
   return (
@@ -210,30 +313,36 @@ export default function ReportsScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare} disabled={!csvData}>
-          <Ionicons name="share-outline" size={18} color="#2563EB" />
-          <Text style={styles.shareText}>Share</Text>
+        <TouchableOpacity style={[styles.shareButton, !report && styles.shareButtonDisabled]} onPress={handleShare} disabled={!report || sharing}>
+          {sharing ? (
+            <ActivityIndicator color="#2563EB" size="small" />
+          ) : (
+            <>
+              <Ionicons name="download-outline" size={18} color={report ? "#2563EB" : "#9CA3AF"} />
+              <Text style={[styles.shareText, !report && { color: "#9CA3AF" }]}>Excel</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
-      {summary && (
+      {report && (
         <View style={styles.summarySection}>
           <Text style={styles.sectionTitle}>Summary</Text>
           <View style={styles.statsGrid}>
-            <StatCard label="Patients" value={summary.totalPatients} />
-            <StatCard label="Appointments" value={summary.totalAppointments} />
-            <StatCard label="Completed" value={summary.completedAppointments} color="#059669" />
-            <StatCard label="Cancelled" value={summary.cancelledAppointments} color="#DC2626" />
-            <StatCard label="Checked In" value={summary.checkedIn} color="#D97706" />
-            <StatCard label="Invoices" value={summary.totalInvoices} />
-            <StatCard label="Unpaid" value={summary.unpaidInvoices} color="#DC2626" />
-            <StatCard label="Payments" value={summary.totalPayments} />
+            <StatCard label="Patients" value={report.summary.totalPatients} />
+            <StatCard label="Appointments" value={report.summary.totalAppointments} />
+            <StatCard label="Completed" value={report.summary.completedAppointments} color="#059669" />
+            <StatCard label="Cancelled" value={report.summary.cancelledAppointments} color="#DC2626" />
+            <StatCard label="Checked In" value={report.summary.checkedIn} color="#D97706" />
+            <StatCard label="Invoices" value={report.summary.totalInvoices} />
+            <StatCard label="Unpaid" value={report.summary.unpaidInvoices} color="#DC2626" />
+            <StatCard label="Payments" value={report.summary.totalPayments} />
           </View>
 
           <View style={styles.revenueSection}>
-            <RevenueRow label="Total Invoiced" amount={summary.totalInvoiced} />
-            <RevenueRow label="Total Revenue" amount={summary.totalRevenue} color="#059669" />
-            <RevenueRow label="Outstanding" amount={summary.outstandingAmount} color="#D97706" />
+            <RevenueRow label="Total Invoiced" amount={report.summary.totalInvoiced} />
+            <RevenueRow label="Total Revenue" amount={report.summary.totalRevenue} color="#059669" />
+            <RevenueRow label="Outstanding" amount={report.summary.outstandingAmount} color="#D97706" />
           </View>
         </View>
       )}
@@ -328,6 +437,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 10,
+  },
+  shareButtonDisabled: {
+    backgroundColor: "#F3F4F6",
   },
   shareText: {
     fontSize: 15,

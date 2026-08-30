@@ -23,7 +23,7 @@ export function MobileNav({ user, onLogout }: MobileNavProps) {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)' }}>
-      <nav className="mx-3 flex items-center justify-around rounded-2xl border border-white/20 bg-white/70 py-2 shadow-lg shadow-black/10 backdrop-blur-xl">
+      <nav className="mx-3 flex items-center justify-around rounded-2xl border border-black/[0.06] bg-white/75 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur-xl">
         {tabs.map((tab) => {
           const isActive = pathname.startsWith(tab.href);
           return (
