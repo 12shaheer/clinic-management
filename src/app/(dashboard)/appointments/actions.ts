@@ -55,7 +55,7 @@ export async function checkInAppointment(appointmentId: string) {
   return { success: true };
 }
 
-export async function createInvoiceForAppointment(appointmentId: string, patientId: string, subtotal: number, discount: number, collectedBy: string) {
+export async function createInvoiceForAppointment(appointmentId: string, patientId: string, subtotal: number, discount: number) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
@@ -65,6 +65,15 @@ export async function createInvoiceForAppointment(appointmentId: string, patient
   const total = subtotal - discount;
   if (total <= 0) return { error: "Total after discount must be greater than zero." };
 
+  const { data: patient } = await supabase
+    .from("patients")
+    .select("credit_balance")
+    .eq("id", patientId)
+    .single();
+
+  const creditBalance = Number(patient?.credit_balance ?? 0);
+  const autoPay = creditBalance >= total;
+
   const { data: invoice, error } = await supabase
     .from("invoices")
     .insert({
@@ -73,13 +82,36 @@ export async function createInvoiceForAppointment(appointmentId: string, patient
       subtotal,
       discount,
       total,
-      status: "paid",
-      collected_by: collectedBy,
+      status: autoPay ? "paid" : "unpaid",
+      ...(autoPay ? {
+        collected_by: "credit",
+        payment_confirmed_at: new Date().toISOString(),
+        confirmed_by: user.id,
+      } : {}),
     })
     .select("id, invoice_code")
     .single();
 
   if (error) return { error: "Failed to create invoice. " + error.message };
+
+  if (autoPay) {
+    const newBalance = creditBalance - total;
+    await supabase
+      .from("patients")
+      .update({ credit_balance: newBalance })
+      .eq("id", patientId);
+
+    await supabase
+      .from("credit_transactions")
+      .insert({
+        patient_id: patientId,
+        amount: -total,
+        type: "credit_used",
+        description: `Auto-applied PKR ${total.toLocaleString()} to invoice ${invoice.invoice_code}`,
+        invoice_id: invoice.id,
+        created_by: user.id,
+      });
+  }
 
   await supabase
     .from("appointments")
@@ -89,7 +121,12 @@ export async function createInvoiceForAppointment(appointmentId: string, patient
   revalidatePath("/appointments");
   revalidatePath("/invoices");
   revalidatePath("/dashboard");
-  return { invoiceCode: invoice.invoice_code };
+  revalidatePath(`/patients/${patientId}`);
+  return {
+    invoiceCode: invoice.invoice_code,
+    autoPaid: autoPay,
+    creditUsed: autoPay ? total : 0,
+  };
 }
 
 export async function cancelAppointment(appointmentId: string) {

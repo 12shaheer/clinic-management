@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getCached, setCache, isFresh } from "@/lib/data-cache";
 import type { Appointment } from "@/types/database";
@@ -25,6 +26,7 @@ export default function AppointmentsScreen() {
   const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [invoiceTarget, setInvoiceTarget] = useState<Appointment | null>(null);
 
   const fetchAppointments = useCallback(async () => {
     const { data } = await supabase
@@ -74,7 +76,7 @@ export default function AppointmentsScreen() {
       actions.push({ text: "Check In", onPress: () => handleStatusUpdate(apt.id, "checked_in") });
       actions.push({ text: "Cancel", style: "destructive", onPress: () => handleStatusUpdate(apt.id, "cancelled") });
     } else if (apt.status === "checked_in") {
-      actions.push({ text: "Complete", onPress: () => handleStatusUpdate(apt.id, "completed") });
+      actions.push({ text: "Create Invoice", onPress: () => setInvoiceTarget(apt) });
     }
 
     actions.push({ text: "Dismiss", style: "cancel" });
@@ -160,6 +162,16 @@ export default function AppointmentsScreen() {
         onClose={() => setShowNewModal(false)}
         onCreated={() => {
           setShowNewModal(false);
+          fetchAppointments();
+        }}
+      />
+
+      <CreateInvoiceModal
+        visible={!!invoiceTarget}
+        appointment={invoiceTarget}
+        onClose={() => setInvoiceTarget(null)}
+        onCreated={() => {
+          setInvoiceTarget(null);
           fetchAppointments();
         }}
       />
@@ -358,6 +370,200 @@ function NewAppointmentModal({
     </Modal>
   );
 }
+
+function CreateInvoiceModal({
+  visible,
+  appointment,
+  onClose,
+  onCreated,
+}: {
+  visible: boolean;
+  appointment: Appointment | null;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const { user } = useAuth();
+  const [subtotal, setSubtotal] = useState("");
+  const [discount, setDiscount] = useState("0");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!visible) {
+      setSubtotal("");
+      setDiscount("0");
+    }
+  }, [visible]);
+
+  async function handleCreate() {
+    const amount = parseFloat(subtotal);
+    if (!amount || amount <= 0) {
+      Alert.alert("Required", "Please enter a valid amount.");
+      return;
+    }
+    const disc = parseFloat(discount) || 0;
+    const total = amount - disc;
+    if (total <= 0) {
+      Alert.alert("Error", "Total after discount must be greater than zero.");
+      return;
+    }
+    if (!appointment) return;
+
+    setLoading(true);
+
+    const { data: patient } = await supabase
+      .from("patients")
+      .select("credit_balance")
+      .eq("id", appointment.patient_id)
+      .single();
+
+    const creditBalance = Number(patient?.credit_balance ?? 0);
+    const autoPay = creditBalance >= total;
+
+    const { data: invoice, error } = await supabase
+      .from("invoices")
+      .insert({
+        patient_id: appointment.patient_id,
+        appointment_id: appointment.id,
+        subtotal: amount,
+        discount: disc,
+        total,
+        status: autoPay ? "paid" : "unpaid",
+        ...(autoPay ? {
+          collected_by: "credit",
+          payment_confirmed_at: new Date().toISOString(),
+          confirmed_by: user?.id || null,
+        } : {}),
+      })
+      .select("id, invoice_code")
+      .single();
+
+    if (error) {
+      setLoading(false);
+      Alert.alert("Error", error.message);
+      return;
+    }
+
+    if (autoPay && invoice) {
+      const newBalance = creditBalance - total;
+      await supabase
+        .from("patients")
+        .update({ credit_balance: newBalance })
+        .eq("id", appointment.patient_id);
+
+      await supabase
+        .from("credit_transactions")
+        .insert({
+          patient_id: appointment.patient_id,
+          amount: -total,
+          type: "credit_used",
+          description: `Auto-applied PKR ${total.toLocaleString()} to invoice ${invoice.invoice_code}`,
+          invoice_id: invoice.id,
+          created_by: user?.id || null,
+        });
+    }
+
+    await supabase
+      .from("appointments")
+      .update({ status: "completed" })
+      .eq("id", appointment.id);
+
+    setLoading(false);
+
+    const msg = autoPay
+      ? `Invoice ${invoice?.invoice_code} created and auto-paid from credit balance (PKR ${total.toLocaleString()}).`
+      : `Invoice ${invoice?.invoice_code} created as unpaid. Confirm payment from the patient profile.`;
+    Alert.alert("Invoice Created", msg);
+    onCreated();
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={modalStyles.header}>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={modalStyles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={modalStyles.title}>Create Invoice</Text>
+        <TouchableOpacity onPress={handleCreate} disabled={loading}>
+          {loading ? <ActivityIndicator size="small" color="#2563EB" /> : <Text style={modalStyles.saveText}>Create</Text>}
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={modalStyles.body} keyboardShouldPersistTaps="handled">
+        {appointment && (
+          <View style={invoiceCreateStyles.patientInfo}>
+            <Text style={invoiceCreateStyles.patientName}>
+              {appointment.patients?.first_name} {appointment.patients?.last_name}
+            </Text>
+            <Text style={invoiceCreateStyles.patientMeta}>
+              {format(new Date(appointment.appointment_date), "MMM d, yyyy")} at {appointment.start_time}
+            </Text>
+          </View>
+        )}
+
+        <Text style={modalStyles.label}>Amount (PKR)</Text>
+        <TextInput
+          style={modalStyles.input}
+          value={subtotal}
+          onChangeText={setSubtotal}
+          placeholder="Enter amount"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="numeric"
+        />
+
+        <Text style={modalStyles.label}>Discount (PKR)</Text>
+        <TextInput
+          style={modalStyles.input}
+          value={discount}
+          onChangeText={setDiscount}
+          placeholder="0"
+          placeholderTextColor="#9CA3AF"
+          keyboardType="numeric"
+        />
+
+        <View style={invoiceCreateStyles.noteBox}>
+          <Ionicons name="information-circle-outline" size={16} color="#92400E" />
+          <Text style={invoiceCreateStyles.noteText}>
+            Invoice is created as unpaid. If the patient has enough credit balance, it will be auto-applied.
+          </Text>
+        </View>
+      </ScrollView>
+    </Modal>
+  );
+}
+
+const invoiceCreateStyles = StyleSheet.create({
+  patientInfo: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  patientName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+  },
+  patientMeta: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  noteBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 10,
+    padding: 12,
+  },
+  noteText: {
+    fontSize: 13,
+    color: "#92400E",
+    flex: 1,
+  },
+});
 
 const styles = StyleSheet.create({
   container: {

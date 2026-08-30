@@ -79,7 +79,7 @@ export function AppointmentActions({ appointment }: AppointmentActionsProps) {
 function InvoiceModal({ appointmentId, patientId, onClose }: { appointmentId: string; patientId: string; onClose: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ invoiceCode: string; autoPaid: boolean; creditUsed: number } | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -87,7 +87,6 @@ function InvoiceModal({ appointmentId, patientId, onClose }: { appointmentId: st
     const formData = new FormData(e.currentTarget);
     const subtotal = parseFloat(formData.get("subtotal") as string);
     const discount = parseFloat(formData.get("discount") as string) || 0;
-    const collectedBy = formData.get("collected_by") as string;
 
     if (!subtotal || subtotal <= 0) {
       setError("Total amount is required.");
@@ -95,11 +94,15 @@ function InvoiceModal({ appointmentId, patientId, onClose }: { appointmentId: st
     }
 
     startTransition(async () => {
-      const result = await createInvoiceForAppointment(appointmentId, patientId, subtotal, discount, collectedBy);
+      const result = await createInvoiceForAppointment(appointmentId, patientId, subtotal, discount);
       if (result.error) {
         setError(result.error);
       } else if ("invoiceCode" in result) {
-        setSuccess(result.invoiceCode!);
+        setSuccess({
+          invoiceCode: result.invoiceCode!,
+          autoPaid: result.autoPaid ?? false,
+          creditUsed: result.creditUsed ?? 0,
+        });
       }
     });
   }
@@ -116,8 +119,17 @@ function InvoiceModal({ appointmentId, patientId, onClose }: { appointmentId: st
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Invoice Created</h3>
             <p className="mt-2 text-sm text-gray-600">
-              Invoice: <span className="font-mono font-semibold">{success}</span>
+              Invoice: <span className="font-mono font-semibold">{success.invoiceCode}</span>
             </p>
+            {success.autoPaid ? (
+              <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                Automatically paid from credit balance (PKR {success.creditUsed.toLocaleString()})
+              </p>
+            ) : (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                Invoice is unpaid. Confirm payment from the patient profile.
+              </p>
+            )}
             <button onClick={onClose} className="mt-4 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
               Done
             </button>
@@ -131,7 +143,7 @@ function InvoiceModal({ appointmentId, patientId, onClose }: { appointmentId: st
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-semibold text-gray-900">Create Invoice</h3>
-        <p className="mt-1 text-sm text-gray-500">Enter payment details for this appointment.</p>
+        <p className="mt-1 text-sm text-gray-500">Invoice will be created as unpaid. If the patient has enough credit balance, it will be auto-applied.</p>
 
         {error && <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
@@ -157,17 +169,6 @@ function InvoiceModal({ appointmentId, patientId, onClose }: { appointmentId: st
               defaultValue="0"
               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Payment Collected By *</label>
-            <select
-              name="collected_by"
-              required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="reception">At Reception</option>
-              <option value="doctor">By the Doctor</option>
-            </select>
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
