@@ -303,48 +303,55 @@ export default function PatientDetailScreen() {
           </View>
         )}
 
+        {/* Collect Payment - always visible */}
+        <TouchableOpacity
+          style={styles.sumPayButton}
+          onPress={() => setShowSumPayment(!showSumPayment)}
+        >
+          <Ionicons name="cash-outline" size={16} color="#2563EB" />
+          <Text style={styles.sumPayButtonText}>Collect Payment</Text>
+        </TouchableOpacity>
+
         {/* Unpaid Invoices */}
-        {unpaidInvoices.length > 0 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Unpaid Sessions</Text>
-              <TouchableOpacity
-                style={styles.sumPayButton}
-                onPress={() => setShowSumPayment(!showSumPayment)}
-              >
-                <Ionicons name="cash-outline" size={16} color="#2563EB" />
-                <Text style={styles.sumPayButtonText}>Collect Payment</Text>
+        {showSumPayment && (
+          <Card style={styles.sumPayCard}>
+            <Text style={styles.sumPayInfo}>
+              {totalUnpaid > 0
+                ? `Total unpaid: PKR ${totalUnpaid.toLocaleString()}. Any excess becomes advance credit.`
+                : "No unpaid invoices. Payment will be stored as advance credit."}
+            </Text>
+            <TextInput
+              style={styles.sumPayInput}
+              value={sumAmount}
+              onChangeText={setSumAmount}
+              placeholder={totalUnpaid > 0 ? totalUnpaid.toString() : "Enter amount"}
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+            />
+            {totalUnpaid > 0 && parseFloat(sumAmount) > totalUnpaid && (
+              <Text style={styles.advanceHint}>
+                PKR {(parseFloat(sumAmount) - totalUnpaid).toLocaleString()} will be stored as advance credit
+              </Text>
+            )}
+            {totalUnpaid === 0 && parseFloat(sumAmount) > 0 && (
+              <Text style={styles.advanceHint}>
+                PKR {parseFloat(sumAmount).toLocaleString()} will be stored as advance credit
+              </Text>
+            )}
+            <View style={styles.sumPayActions}>
+              <TouchableOpacity style={styles.sumPayConfirm} onPress={handleSumPayment}>
+                <Text style={styles.sumPayConfirmText}>Apply Payment</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setShowSumPayment(false); setSumAmount(""); }}>
+                <Text style={styles.sumPayCancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
+          </Card>
+        )}
 
-            {showSumPayment && (
-              <Card style={styles.sumPayCard}>
-                <Text style={styles.sumPayInfo}>
-                  Total unpaid: PKR {totalUnpaid.toLocaleString()}. Any excess becomes advance credit.
-                </Text>
-                <TextInput
-                  style={styles.sumPayInput}
-                  value={sumAmount}
-                  onChangeText={setSumAmount}
-                  placeholder={totalUnpaid.toString()}
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="numeric"
-                />
-                {parseFloat(sumAmount) > totalUnpaid && (
-                  <Text style={styles.advanceHint}>
-                    PKR {(parseFloat(sumAmount) - totalUnpaid).toLocaleString()} will be stored as advance credit
-                  </Text>
-                )}
-                <View style={styles.sumPayActions}>
-                  <TouchableOpacity style={styles.sumPayConfirm} onPress={handleSumPayment}>
-                    <Text style={styles.sumPayConfirmText}>Apply Payment</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setShowSumPayment(false); setSumAmount(""); }}>
-                    <Text style={styles.sumPayCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </Card>
-            )}
+        {unpaidInvoices.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Unpaid Sessions</Text>
 
             {unpaidInvoices.map((inv) => (
               <Card key={inv.id} style={styles.unpaidCard}>

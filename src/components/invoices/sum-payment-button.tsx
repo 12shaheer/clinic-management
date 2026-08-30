@@ -48,7 +48,9 @@ export function SumPaymentButton({ patientId, totalUnpaid }: { patientId: string
     <div className="rounded-xl border border-primary-200 bg-primary-50 p-4 w-full sm:w-auto">
       <h3 className="text-sm font-semibold text-gray-900">Collect Payment</h3>
       <p className="text-xs text-gray-500 mt-1">
-        Total unpaid: PKR {totalUnpaid.toLocaleString()}. Any excess will be stored as advance credit.
+        {totalUnpaid > 0
+          ? `Total unpaid: PKR ${totalUnpaid.toLocaleString()}. Any excess will be stored as advance credit.`
+          : "No unpaid invoices. Payment will be stored as advance credit."}
       </p>
 
       {result && (
@@ -64,13 +66,13 @@ export function SumPaymentButton({ patientId, totalUnpaid }: { patientId: string
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder={totalUnpaid.toString()}
+            placeholder={totalUnpaid > 0 ? totalUnpaid.toString() : "Enter amount"}
             min="1"
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          {parseFloat(amount) > totalUnpaid && (
+          {parseFloat(amount) > 0 && (totalUnpaid === 0 || parseFloat(amount) > totalUnpaid) && (
             <p className="mt-1 text-xs text-blue-600">
-              PKR {(parseFloat(amount) - totalUnpaid).toLocaleString()} will be stored as advance credit
+              PKR {(parseFloat(amount) - totalUnpaid > 0 ? parseFloat(amount) - totalUnpaid : parseFloat(amount)).toLocaleString()} will be stored as advance credit
             </p>
           )}
         </div>

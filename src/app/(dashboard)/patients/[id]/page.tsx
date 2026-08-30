@@ -76,7 +76,7 @@ export default async function PatientDetailPage({
         </div>
       </div>
 
-      {/* Current Balance */}
+      {/* Current Balance + Collect Payment */}
       <div className="mt-6 flex flex-col sm:flex-row gap-3">
         <div className={`flex-1 rounded-xl border p-5 ${
           currentBalance > 0 ? "border-red-200 bg-red-50" :
@@ -108,13 +108,14 @@ export default async function PatientDetailPage({
         )}
       </div>
 
-      {/* Unpaid Invoices + Payment Actions */}
+      <div className="mt-4">
+        <SumPaymentButton patientId={id} totalUnpaid={totalUnpaid} />
+      </div>
+
+      {/* Unpaid Invoices */}
       {unpaidInvoices.length > 0 && (
         <div className="mt-6 rounded-xl border border-red-200 bg-white p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-lg font-semibold text-gray-900">Unpaid Sessions</h2>
-            <SumPaymentButton patientId={id} totalUnpaid={totalUnpaid} />
-          </div>
+          <h2 className="text-lg font-semibold text-gray-900">Unpaid Sessions</h2>
           <div className="mt-4 space-y-3">
             {unpaidInvoices.map((inv) => (
               <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-red-100 bg-red-50/50 p-3">
