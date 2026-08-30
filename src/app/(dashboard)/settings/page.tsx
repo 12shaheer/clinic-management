@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getAuthUser } from "@/lib/auth";
+import { LogoutButton } from "./logout-button";
 
 export default async function SettingsPage() {
   const auth = await getAuthUser();
@@ -49,6 +50,8 @@ export default async function SettingsPage() {
           Settings management will be available in a future update.
         </p>
       </div>
+
+      <LogoutButton />
     </div>
   );
 }
