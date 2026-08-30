@@ -39,14 +39,14 @@ export function SumPaymentButton({ patientId, totalUnpaid }: { patientId: string
         onClick={() => setShowForm(true)}
         className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
       >
-        Make Sum Payment
+        Collect Payment
       </button>
     );
   }
 
   return (
     <div className="rounded-xl border border-primary-200 bg-primary-50 p-4 w-full sm:w-auto">
-      <h3 className="text-sm font-semibold text-gray-900">Sum Payment</h3>
+      <h3 className="text-sm font-semibold text-gray-900">Collect Payment</h3>
       <p className="text-xs text-gray-500 mt-1">
         Total unpaid: PKR {totalUnpaid.toLocaleString()}. Any excess will be stored as advance credit.
       </p>

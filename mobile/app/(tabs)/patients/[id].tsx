@@ -173,7 +173,7 @@ export default function PatientDetailScreen() {
     }
     message += "\n\nWhere was payment received?";
 
-    Alert.alert("Sum Payment", message, [
+    Alert.alert("Collect Payment", message, [
       { text: "At Reception", onPress: () => doSumPayment(amount, "reception") },
       { text: "By Doctor", onPress: () => doSumPayment(amount, "doctor") },
       { text: "Cancel", style: "cancel" },
@@ -313,7 +313,7 @@ export default function PatientDetailScreen() {
                 onPress={() => setShowSumPayment(!showSumPayment)}
               >
                 <Ionicons name="cash-outline" size={16} color="#2563EB" />
-                <Text style={styles.sumPayButtonText}>Sum Payment</Text>
+                <Text style={styles.sumPayButtonText}>Collect Payment</Text>
               </TouchableOpacity>
             </View>
 
