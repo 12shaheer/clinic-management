@@ -35,11 +35,13 @@ function GlassTabBar(props: any) {
                   }
                 }}
               >
-                <Ionicons
-                  name={iconName}
-                  size={24}
-                  color={isFocused ? "#111827" : "#9CA3AF"}
-                />
+                <View style={[tabStyles.iconWrap, isFocused && tabStyles.iconWrapActive]}>
+                  <Ionicons
+                    name={isFocused ? (iconName.replace("-outline", "") as keyof typeof Ionicons.glyphMap) : iconName}
+                    size={22}
+                    color={isFocused ? "#FFFFFF" : "#9CA3AF"}
+                  />
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -60,7 +62,7 @@ const tabStyles = StyleSheet.create({
   },
   blur: {
     width: "100%",
-    borderRadius: 24,
+    borderRadius: 40,
     overflow: "hidden",
     borderWidth: 0.5,
     borderColor: "rgba(255,255,255,0.3)",
@@ -69,13 +71,23 @@ const tabStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
     backgroundColor: "rgba(255,255,255,0.6)",
   },
   tab: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+  },
+  iconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrapActive: {
+    backgroundColor: "#2563EB",
   },
 });
 

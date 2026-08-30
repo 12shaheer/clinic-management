@@ -36,6 +36,13 @@ export default function SettingsScreen() {
             <Text style={styles.menuLabel}>Reports</Text>
             <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/users" as any)}>
+            <View style={[styles.menuIcon, { backgroundColor: "#F0FDF4" }]}>
+              <Ionicons name="people-outline" size={20} color="#15803D" />
+            </View>
+            <Text style={styles.menuLabel}>Users</Text>
+            <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+          </TouchableOpacity>
         </View>
       )}
 
