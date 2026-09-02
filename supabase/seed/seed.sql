@@ -11,9 +11,9 @@
 -- ============================================================
 
 INSERT INTO physiotherapists (id, first_name, last_name, email, phone, specialization, status) VALUES
-  ('a1111111-1111-1111-1111-111111111111', 'Ahmed', 'Khan', 'ahmed.khan@clinic.test', '0300-1234567', 'Sports Rehabilitation', 'active'),
-  ('a2222222-2222-2222-2222-222222222222', 'Sara', 'Malik', 'sara.malik@clinic.test', '0301-2345678', 'Musculoskeletal', 'active'),
-  ('a3333333-3333-3333-3333-333333333333', 'Hassan', 'Ali', 'hassan.ali@clinic.test', '0302-3456789', 'Neurological Rehabilitation', 'active');
+  ('d0000001-0001-4000-a001-000000000001', 'Sandhya', 'Kumari', NULL, NULL, NULL, 'active'),
+  ('d0000001-0001-4000-a001-000000000002', 'Nisaullah', '', NULL, NULL, NULL, 'active'),
+  ('d0000001-0001-4000-a001-000000000003', 'Sateesh', '', NULL, NULL, NULL, 'active');
 
 -- ============================================================
 -- PATIENTS
@@ -31,27 +31,27 @@ INSERT INTO patients (id, first_name, last_name, phone, email, date_of_birth, ge
 -- ============================================================
 
 INSERT INTO appointments (id, patient_id, physiotherapist_id, appointment_date, start_time, end_time, appointment_type, status, notes) VALUES
-  ('c1111111-1111-1111-1111-111111111111', 'b1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', CURRENT_DATE, '09:00', '09:45', 'Follow-up', 'completed', 'Regular follow-up session'),
-  ('c2222222-2222-2222-2222-222222222222', 'b2222222-2222-2222-2222-222222222222', 'a2222222-2222-2222-2222-222222222222', CURRENT_DATE, '10:00', '10:45', 'Treatment', 'checked_in', 'ACL rehab week 6'),
-  ('c3333333-3333-3333-3333-333333333333', 'b3333333-3333-3333-3333-333333333333', 'a1111111-1111-1111-1111-111111111111', CURRENT_DATE, '11:00', '11:45', 'Treatment', 'scheduled', 'Shoulder mobilization'),
-  ('c4444444-4444-4444-4444-444444444444', 'b4444444-4444-4444-4444-444444444444', 'a3333333-3333-3333-3333-333333333333', CURRENT_DATE, '14:00', '14:30', 'Initial Assessment', 'scheduled', 'New patient assessment'),
-  ('c5555555-5555-5555-5555-555555555555', 'b5555555-5555-5555-5555-555555555555', 'a2222222-2222-2222-2222-222222222222', CURRENT_DATE, '15:00', '15:45', 'Follow-up', 'scheduled', NULL),
-  ('c6666666-6666-6666-6666-666666666666', 'b1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', CURRENT_DATE + INTERVAL '1 day', '09:00', '09:45', 'Follow-up', 'scheduled', NULL),
-  ('c7777777-7777-7777-7777-777777777777', 'b3333333-3333-3333-3333-333333333333', 'a1111111-1111-1111-1111-111111111111', CURRENT_DATE + INTERVAL '2 days', '10:00', '10:45', 'Treatment', 'scheduled', NULL),
-  ('c8888888-8888-8888-8888-888888888888', 'b2222222-2222-2222-2222-222222222222', 'a2222222-2222-2222-2222-222222222222', CURRENT_DATE + INTERVAL '3 days', '11:00', '11:45', 'Follow-up', 'confirmed', NULL),
-  ('c9999999-9999-9999-9999-999999999999', 'b4444444-4444-4444-4444-444444444444', 'a3333333-3333-3333-3333-333333333333', CURRENT_DATE + INTERVAL '4 days', '09:00', '09:30', 'Treatment', 'scheduled', NULL),
-  ('caaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'b5555555-5555-5555-5555-555555555555', 'a2222222-2222-2222-2222-222222222222', CURRENT_DATE + INTERVAL '5 days', '14:00', '14:45', 'Follow-up', 'scheduled', NULL);
+  ('c1111111-1111-1111-1111-111111111111', 'b1111111-1111-1111-1111-111111111111', 'd0000001-0001-4000-a001-000000000001', CURRENT_DATE, '09:00', '09:45', 'Follow-up', 'completed', 'Regular follow-up session'),
+  ('c2222222-2222-2222-2222-222222222222', 'b2222222-2222-2222-2222-222222222222', 'd0000001-0001-4000-a001-000000000002', CURRENT_DATE, '10:00', '10:45', 'Treatment', 'checked_in', 'ACL rehab week 6'),
+  ('c3333333-3333-3333-3333-333333333333', 'b3333333-3333-3333-3333-333333333333', 'd0000001-0001-4000-a001-000000000001', CURRENT_DATE, '11:00', '11:45', 'Treatment', 'scheduled', 'Shoulder mobilization'),
+  ('c4444444-4444-4444-4444-444444444444', 'b4444444-4444-4444-4444-444444444444', 'd0000001-0001-4000-a001-000000000003', CURRENT_DATE, '14:00', '14:30', 'Initial Assessment', 'scheduled', 'New patient assessment'),
+  ('c5555555-5555-5555-5555-555555555555', 'b5555555-5555-5555-5555-555555555555', 'd0000001-0001-4000-a001-000000000002', CURRENT_DATE, '15:00', '15:45', 'Follow-up', 'scheduled', NULL),
+  ('c6666666-6666-6666-6666-666666666666', 'b1111111-1111-1111-1111-111111111111', 'd0000001-0001-4000-a001-000000000001', CURRENT_DATE + INTERVAL '1 day', '09:00', '09:45', 'Follow-up', 'scheduled', NULL),
+  ('c7777777-7777-7777-7777-777777777777', 'b3333333-3333-3333-3333-333333333333', 'd0000001-0001-4000-a001-000000000001', CURRENT_DATE + INTERVAL '2 days', '10:00', '10:45', 'Treatment', 'scheduled', NULL),
+  ('c8888888-8888-8888-8888-888888888888', 'b2222222-2222-2222-2222-222222222222', 'd0000001-0001-4000-a001-000000000002', CURRENT_DATE + INTERVAL '3 days', '11:00', '11:45', 'Follow-up', 'confirmed', NULL),
+  ('c9999999-9999-9999-9999-999999999999', 'b4444444-4444-4444-4444-444444444444', 'd0000001-0001-4000-a001-000000000003', CURRENT_DATE + INTERVAL '4 days', '09:00', '09:30', 'Treatment', 'scheduled', NULL),
+  ('caaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'b5555555-5555-5555-5555-555555555555', 'd0000001-0001-4000-a001-000000000002', CURRENT_DATE + INTERVAL '5 days', '14:00', '14:45', 'Follow-up', 'scheduled', NULL);
 
 -- ============================================================
 -- SESSIONS
 -- ============================================================
 
 INSERT INTO sessions (id, appointment_id, patient_id, physiotherapist_id, started_at, completed_at, session_notes, status) VALUES
-  ('d1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'b1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', CURRENT_DATE + TIME '09:00', CURRENT_DATE + TIME '09:40', 'Patient reports 40% improvement in lower back pain. Continued with lumbar mobilization and core stabilization exercises.', 'completed'),
-  ('d2222222-2222-2222-2222-222222222222', 'c2222222-2222-2222-2222-222222222222', 'b2222222-2222-2222-2222-222222222222', 'a2222222-2222-2222-2222-222222222222', NULL, NULL, NULL, 'waiting'),
-  ('d3333333-3333-3333-3333-333333333333', NULL, 'b3333333-3333-3333-3333-333333333333', 'a1111111-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '3 days' + TIME '11:00', CURRENT_DATE - INTERVAL '3 days' + TIME '11:40', 'Shoulder ROM improving. Added resistance exercises.', 'completed'),
-  ('d4444444-4444-4444-4444-444444444444', NULL, 'b5555555-5555-5555-5555-555555555555', 'a2222222-2222-2222-2222-222222222222', CURRENT_DATE - INTERVAL '5 days' + TIME '14:00', CURRENT_DATE - INTERVAL '5 days' + TIME '14:35', 'Ankle mobility exercises. Good progress.', 'completed'),
-  ('d5555555-5555-5555-5555-555555555555', NULL, 'b1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', CURRENT_DATE - INTERVAL '7 days' + TIME '09:00', CURRENT_DATE - INTERVAL '7 days' + TIME '09:45', 'Initial assessment completed. Treatment plan discussed.', 'completed');
+  ('d1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111', 'b1111111-1111-1111-1111-111111111111', 'd0000001-0001-4000-a001-000000000001', CURRENT_DATE + TIME '09:00', CURRENT_DATE + TIME '09:40', 'Patient reports 40% improvement in lower back pain. Continued with lumbar mobilization and core stabilization exercises.', 'completed'),
+  ('d2222222-2222-2222-2222-222222222222', 'c2222222-2222-2222-2222-222222222222', 'b2222222-2222-2222-2222-222222222222', 'd0000001-0001-4000-a001-000000000002', NULL, NULL, NULL, 'waiting'),
+  ('d3333333-3333-3333-3333-333333333333', NULL, 'b3333333-3333-3333-3333-333333333333', 'd0000001-0001-4000-a001-000000000001', CURRENT_DATE - INTERVAL '3 days' + TIME '11:00', CURRENT_DATE - INTERVAL '3 days' + TIME '11:40', 'Shoulder ROM improving. Added resistance exercises.', 'completed'),
+  ('d4444444-4444-4444-4444-444444444444', NULL, 'b5555555-5555-5555-5555-555555555555', 'd0000001-0001-4000-a001-000000000002', CURRENT_DATE - INTERVAL '5 days' + TIME '14:00', CURRENT_DATE - INTERVAL '5 days' + TIME '14:35', 'Ankle mobility exercises. Good progress.', 'completed'),
+  ('d5555555-5555-5555-5555-555555555555', NULL, 'b1111111-1111-1111-1111-111111111111', 'd0000001-0001-4000-a001-000000000001', CURRENT_DATE - INTERVAL '7 days' + TIME '09:00', CURRENT_DATE - INTERVAL '7 days' + TIME '09:45', 'Initial assessment completed. Treatment plan discussed.', 'completed');
 
 -- ============================================================
 -- INVOICES
