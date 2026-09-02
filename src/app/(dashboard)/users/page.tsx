@@ -22,8 +22,6 @@ export default async function UsersPage() {
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 <th className="px-6 py-3">Name</th>
-                <th className="px-6 py-3">Email</th>
-                <th className="px-6 py-3">Role</th>
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3">Joined</th>
               </tr>
@@ -32,12 +30,6 @@ export default async function UsersPage() {
               {users.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 font-medium text-gray-900">{user.name}</td>
-                  <td className="px-6 py-4 text-gray-600">{user.email}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium capitalize text-primary-700">
-                      {user.role}
-                    </span>
-                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                       user.status === "active" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"

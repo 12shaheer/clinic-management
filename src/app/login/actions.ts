@@ -4,18 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function login(formData: FormData) {
-  const email = formData.get("email") as string;
+  const username = formData.get("username") as string;
   const password = formData.get("password") as string;
 
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signInWithPassword({
-    email,
+    email: `${username.trim().toLowerCase()}@clinic.app`,
     password,
   });
 
   if (error) {
-    return { error: "Invalid email or password" };
+    return { error: "Invalid username or password" };
   }
 
   revalidatePath("/", "layout");

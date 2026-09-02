@@ -18,7 +18,7 @@ export default async function DashboardLayout({
     id: auth.authUser.id,
     auth_user_id: auth.authUser.id,
     name: auth.authUser.email?.split("@")[0] ?? "User",
-    email: auth.authUser.email ?? "",
+    email: auth.authUser.email?.split("@")[0] ?? "",
     role: "admin",
     status: "active",
     created_at: new Date().toISOString(),

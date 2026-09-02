@@ -13,21 +13,22 @@ import { useAuth } from "@/lib/auth-context";
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    if (!email || !password) {
-      setError("Please enter email and password");
+    if (!username || !password) {
+      setError("Please enter username and password");
       return;
     }
 
     setError("");
     setLoading(true);
 
-    const { error } = await signIn(email.trim(), password);
+    const email = `${username.trim().toLowerCase()}@clinic.app`;
+    const { error } = await signIn(email, password);
     if (error) setError(error);
     setLoading(false);
   }
@@ -54,14 +55,13 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>Username</Text>
             <TextInput
               style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Enter your username"
               placeholderTextColor="#9CA3AF"
-              keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
             />
